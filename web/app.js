@@ -9,7 +9,87 @@ const storage = {
   set(key, value) { try { localStorage.setItem(key, value); } catch {} },
   remove(key) { try { localStorage.removeItem(key); } catch {} },
 };
-const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", query: "", sound: storage.get("ml-sound") !== "off", page: "home", recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
+function savedVolume() {
+  const stored = storage.get("ml-voice-volume");
+  const value = stored === null ? 75 : Number(stored);
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) / 100 : 0.75;
+}
+
+const voiceTones = new Set(["natural", "calm", "friendly", "excited", "soft", "whisper"]);
+const savedTone = storage.get("ml-voice-tone");
+// A separate preference makes automatic narration explicit and enabled on first use.
+const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
+const speech = { version: 0, controller: null, audio: null, utterance: null, objectUrl: null, status: "idle" };
+
+function syncVoiceControls() {
+  const percent = Math.round(state.volume * 100);
+  $("#voice-volume").value = percent;
+  $("#voice-volume").style.setProperty("--volume", `${percent}%`);
+  $("#voice-volume-output").textContent = `${percent}%`;
+  $("#voice-volume-summary").textContent = `${percent}%`;
+  $("#auto-speech").checked = state.sound;
+  $("#voice-tone").value = state.tone;
+  const fish = state.config?.tts?.provider === "fish";
+  $("#voice-tone").disabled = !fish;
+  $(".voice-tone-preview").disabled = !fish || !state.config.tts.ready;
+  $("#voice-tone-hint").textContent = fish ? "Подача следующей фразы. Сила эффекта зависит от голоса и текста." : "Выбор интонации доступен для голоса Fish Audio.";
+  const toggle = $('[data-action="toggle-sound"]');
+  if (toggle) {
+    toggle.classList.toggle("off", !state.sound);
+    toggle.setAttribute("aria-pressed", String(state.sound));
+    toggle.setAttribute("aria-label", state.sound ? "Выключить автоозвучку" : "Включить автоозвучку");
+    toggle.title = state.sound ? "Выключить автоозвучку" : "Включить автоозвучку";
+  }
+}
+
+function setVolume(percent) {
+  const value = Number(percent);
+  if (!Number.isFinite(value)) return;
+  state.volume = Math.max(0, Math.min(100, value)) / 100;
+  storage.set("ml-voice-volume", String(Math.round(state.volume * 100)));
+  if (speech.audio) speech.audio.volume = state.volume;
+  if (speech.utterance) speech.utterance.volume = state.volume;
+  syncVoiceControls();
+}
+
+function setAutoSpeech(enabled) {
+  state.sound = Boolean(enabled);
+  storage.set("ml-auto-speech", state.sound ? "on" : "off");
+  if (!state.sound) cancelSpeech();
+  syncVoiceControls();
+}
+
+$("#voice-volume").addEventListener("input", (event) => setVolume(event.target.value));
+$("#auto-speech").addEventListener("change", (event) => setAutoSpeech(event.target.checked));
+$("#voice-tone").addEventListener("change", (event) => {
+  if (!voiceTones.has(event.target.value)) return;
+  state.tone = event.target.value;
+  storage.set("ml-voice-tone", state.tone);
+  cancelSpeech();
+  syncVoiceControls();
+});
+document.addEventListener("click", (event) => { if (!event.target.closest("#voice-controls")) $("#voice-controls").open = false; });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && $("#voice-controls").open) { $("#voice-controls").open = false; $("#voice-controls summary").focus(); } });
+syncVoiceControls();
+
+function syncTheme() {
+  const dark = window.MLTheme.current === "dark";
+  const button = $("#theme-toggle");
+  const label = dark ? "Включить светлую тему" : "Включить тёмную тему";
+  button.innerHTML = icon(dark ? "sun" : "moon");
+  button.setAttribute("aria-label", label);
+  button.setAttribute("aria-pressed", String(dark));
+  button.title = label;
+  if (typeof window.pywebview?.api?.set_theme === "function") {
+    window.pywebview.api.set_theme(dark ? "dark" : "light").catch(() => {});
+  }
+}
+
+$("#theme-toggle").addEventListener("click", () => window.MLTheme.set(window.MLTheme.current === "dark" ? "light" : "dark"));
+window.addEventListener("ml-theme-change", syncTheme);
+window.addEventListener("pywebviewready", syncTheme);
+window.addEventListener("storage", (event) => { if (event.key === "ml-theme") { window.MLTheme.set(event.newValue); } });
+syncTheme();
 
 async function api(path, options = {}) {
   const headers = { "X-App-Token": state.config?.token || "", ...options.headers };
@@ -43,6 +123,7 @@ function setPage(html, label) {
   $("#app-content").innerHTML = html;
   $("#page-label").textContent = label;
   document.querySelectorAll(".nav-link[data-page]").forEach((link) => link.classList.toggle("active", link.dataset.page === state.page));
+  syncVoiceControls();
 }
 
 async function renderHome() {
@@ -56,7 +137,7 @@ async function renderHome() {
   setPage(`
     <div class="intro"><div><span class="eyebrow">МАШИННОЕ ОБУЧЕНИЕ · ЕЖЕДНЕВНАЯ ПРАКТИКА</span><h1>Время разобраться в ML</h1><p>Твоё место, чтобы задавать вопросы, ошибаться и становиться лучше.</p></div><span class="date-note">${escapeHTML(date)}</span></div>
     ${resume ? `<div class="resume-banner"><span>Есть незавершённая тренировка · ${escapeHTML(topicName(state.session.topic))}</span><button class="text-button" data-action="resume">Продолжить ${icon("arrow")}</button></div>` : ""}
-    <section class="hero"><div class="hero-copy"><span class="hero-pill">${icon("spark")} ТВОЙ ЛИЧНЫЙ ML-ТРЕНЕР</span><h1>Понимать глубже.<br>Отвечать увереннее.</h1><p>Объясняй идеи своими словами, замечай пробелы<br class="desktop-break"> и закрепляй знания — по одному вопросу за раз.</p><div class="hero-actions"><button class="button primary" data-action="start">Начать тренировку ${icon("arrow")}</button><span>В своём темпе</span></div></div><div class="hero-art" aria-hidden="true"><div class="orbit"></div><div class="orbit second"></div><div class="voice-card"><div class="voice-label"><span class="status-dot"></span> Пространство для твоих мыслей</div><div class="wave">${[9,17,25,15,33,41,27,46,35,21,31,19,11,17,8].map((height) => `<i style="--h:${height}px"></i>`).join("")}</div><div class="voice-caption">От мысли — к пониманию.</div></div><span class="float-tag">${icon("check")} Можно отвечать своими словами</span></div></section>
+    <section class="hero"><div class="hero-copy"><span class="hero-pill">${icon("spark")} ТВОЙ ЛИЧНЫЙ ML-ТРЕНЕР</span><h1>Понимать глубже.<br><span>Отвечать увереннее.</span></h1><p>Объясняй идеи своими словами, замечай пробелы<br class="desktop-break"> и закрепляй знания — по одному вопросу за раз.</p><div class="hero-actions"><button class="button primary" data-action="start">Начать тренировку ${icon("arrow")}</button><span>В своём темпе</span></div></div><div class="hero-art" aria-hidden="true"><div class="orbit"></div><div class="orbit second"></div><div class="voice-card"><div class="voice-label"><span class="status-dot"></span> Пространство для твоих мыслей</div><div class="wave">${[9,17,25,15,33,41,27,46,35,21,31,19,11,17,8].map((height) => `<i style="--h:${height}px"></i>`).join("")}</div><div class="voice-caption">От мысли — к пониманию.</div></div><span class="float-tag">${icon("check")} Можно отвечать своими словами</span></div></section>
     <div class="metrics-strip"><div class="metric"><span class="metric-icon">${icon("cards")}</span><div><strong>${state.config.cards}</strong><small>вопросов для старта</small></div></div><div class="metric"><span class="metric-icon">${icon("check")}</span><div><strong>${answered}</strong><small>ответов в истории</small></div></div><div class="metric"><span class="metric-icon">${icon("clock")}</span><div><strong>${completed}</strong><small>тренировок завершено</small></div></div></div>
     <div class="section-heading"><h2>Выбери направление</h2><button class="text-button" data-action="library">Весь банк вопросов ${icon("arrow")}</button></div>
     <div class="topic-grid">${state.config.topics.map((topic) => `<button class="topic-card" data-action="topic" data-topic="${topic.id}"><span class="topic-symbol">${topic.symbol}</span><h3>${escapeHTML(topic.name)}</h3><p>${escapeHTML(topic.description)}</p><div class="topic-meta"><span>${topic.count} вопроса <span aria-hidden="true">·</span> Базовый уровень</span>${icon("arrow")}</div></button>`).join("")}</div>
@@ -72,13 +153,15 @@ function showStart(topic = "all") {
 
 async function startSession(event) {
   event.preventDefault();
+  cancelSpeech();
+  discardRecording();
   const button = $("#start-form button[type=submit]");
   button.disabled = true;
   try {
     if (state.session && !state.session.completed) {
       await api(`/sessions/${state.session.id}/finish`, { method: "POST" });
     }
-    state.session = await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, count: Number($("#session-count").value) } });
+    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, count: Number($("#session-count").value) } }));
     storage.set("ml-session", state.session.id);
     state.awaitingNext = false;
     $("#start-dialog").close();
@@ -92,58 +175,93 @@ function messageHTML(kind, text, extra = "", speech = false) {
   return `<div class="message ${kind}"><span class="message-avatar">${kind === "user" ? "Я" : "✳"}</span><div class="message-body"><div class="message-name">${kind === "user" ? "ТВОЙ ОТВЕТ" : "ML-ТРЕНЕР"}${speech ? `<button class="icon-button" data-action="speak" data-text="${escapeHTML(text)}" aria-label="Озвучить сообщение">${icon("sound")}</button>` : ""}</div><div class="message-text">${escapeHTML(text)}</div>${extra}</div></div>`;
 }
 
-function draftKey() { return `ml-draft-${state.session?.id}-${state.session?.question?.id}`; }
+function applySession(session) {
+  state.session = session;
+  state.awaitingNext = Boolean(session.reviewing);
+}
+
+function draftKey() { return `ml-${state.session?.reviewing ? "discussion" : "draft"}-${state.session?.id}-${state.session?.question?.id}`; }
+
+function discussionHTML(attempt) {
+  return (attempt.discussion || []).map((turn) => messageHTML("user", turn.message) + messageHTML("assistant", turn.reply, "", true)).join("");
+}
 
 function renderTraining() {
   const session = state.session;
   if (!session) { showStart(); location.hash = "home"; return; }
-  if (session.completed && !state.awaitingNext) { renderResults(); return; }
+  if (session.completed) { renderResults(); return; }
   const question = session.question;
-  let messages = "";
-  for (const attempt of session.attempts) {
-    messages += messageHTML("assistant", attempt.question.question, "", true);
+  const reviewing = session.reviewing;
+  const attempt = session.attempts.find((item) => item.question.id === question.id);
+  let messages = messageHTML("assistant", question.question, "", true);
+  if (attempt) {
     messages += messageHTML("user", attempt.mode === "skipped" ? "Пропускаю этот вопрос." : attempt.answer);
     messages += messageHTML("assistant", attempt.feedback, `<div class="feedback-tags">${attempt.covered.map((label) => `<span>✓ ${escapeHTML(label)}</span>`).join("")}${attempt.missing.map((label) => `<span class="missing">${escapeHTML(label)}</span>`).join("")}</div>`, true);
+    if (attempt.discussion?.length) messages += `<div class="conversation-divider">Обсуждение вопроса</div>` + discussionHTML(attempt);
   }
-  if (question && !state.awaitingNext) messages += messageHTML("assistant", question.question, "", true);
   const topic = question?.topic || topicName(session.topic);
-  const current = Math.min(session.total, session.answered + (state.awaitingNext ? 0 : 1));
+  const current = session.current_index + 1;
+  const lastQuestion = current >= session.total;
+  const nextPanel = reviewing ? `<div class="next-panel"><p>Можно уточнить разбор или обсудить замечания. Переходи дальше, когда будешь готов.</p><button class="button primary" data-action="next" id="next-question">${lastQuestion ? "Итоги тренировки" : "Следующий вопрос"} ${icon("arrow")}</button></div>` : "";
+  const composer = `<form class="composer ${reviewing ? "discussion-composer" : ""}" id="answer-form"><label class="sr-only" for="answer-input">${reviewing ? "Сообщение тренеру" : "Твой ответ"}</label><textarea id="answer-input" maxlength="12000" placeholder="${reviewing ? "Не согласен с разбором? Объясни почему или задай уточняющий вопрос…" : "Объясни, как ты это понимаешь. Не обязательно отвечать идеально…"}">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">${reviewing ? "Отправить" : "Проверить ответ"} ${icon("arrow")}</button></div><div class="composer-actions">${reviewing ? '<span class="composer-footnote">Обсуждаем текущий вопрос</span>' : '<button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button>'}<span class="composer-footnote">Ctrl + Enter</span></div><p class="composer-footnote">${reviewing ? (state.config.ai ? "Тренер учитывает твой ответ, первый разбор и обсуждение этой карточки." : "Для полноценного диалога подключи OpenRouter. Сейчас доступен демо-ответ с эталоном.") : (state.config.ai ? "Ответ проверит AI-тренер по критериям вопроса." : "Демо: разбор по ключевым словам. Для оценки смысла подключи LLM.")} ${state.config.deepgram ? "Голосовая запись ограничена 2 минутами." : "Голосовой ввод доступен после подключения Deepgram."}</p></form>`;
   setPage(`
     <div class="page-title"><div><span class="eyebrow">СПОКОЙНО. В СВОЁМ ТЕМПЕ.</span><h1>Тренировка</h1><p>${escapeHTML(topic)} · Базовый уровень</p></div><button class="button small" data-action="finish">Завершить</button></div>
-    <div class="training-layout"><section class="chat-panel"><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${state.awaitingNext ? "Разбор готов" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
-    ${state.awaitingNext ? `<div class="next-panel"><p>${session.completed ? "Все вопросы пройдены. Посмотрим, что получилось?" : "Готов двигаться дальше?"}</p><button class="button primary" data-action="next">${session.completed ? "Итоги тренировки" : "Следующий вопрос"} ${icon("arrow")}</button></div>` : `<form class="composer" id="answer-form"><label class="sr-only" for="answer-input">Твой ответ</label><textarea id="answer-input" maxlength="12000" placeholder="Объясни, как ты это понимаешь. Не обязательно отвечать идеально…">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" title="${state.sound ? "Выключить" : "Включить"} озвучку" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">Проверить ответ ${icon("arrow")}</button></div><div class="composer-actions"><button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button><span class="composer-footnote">Ctrl + Enter</span></div><p class="composer-footnote">${state.config.ai ? "Ответ проверит AI-тренер по критериям вопроса." : "Демо: разбор по ключевым словам. Для оценки смысла подключи LLM."} ${state.config.deepgram ? "Голосовая запись ограничена 2 минутами." : "Голосовой ввод доступен после подключения Deepgram."}</p></form>`}</section>
+    <div class="training-layout"><section class="chat-panel"><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${reviewing ? "Обсуждаем вопрос" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
+    ${nextPanel}${composer}</section>
     <aside class="training-side"><div class="side-card"><h3>Твоя практика</h3><div class="progress-number">${session.answered} <span>/ ${session.total}</span></div><div class="progress-track"><div style="width:${100 * session.answered / session.total}%"></div></div><small>вопросов разобрано</small><div class="session-topic">${escapeHTML(topicName(session.topic))}</div></div><div class="side-card sage"><span class="tiny-spark">✳</span><h3>Говори, как понимаешь</h3><p>Начни с главной идеи. Добавь пример. Если не помнишь термин — попробуй объяснить его своими словами.</p></div><div class="side-card"><h3>${state.config.ai ? "AI-тренер" : "Демо-режим"}</h3><p>${state.config.ai ? "Сверяем смысл с критериями и разбираем упущенные моменты." : "Пока ищем ключевые слова и показываем эталон. Это не оценка твоих знаний."}</p><button class="text-button" data-action="settings">Подключения ${icon("arrow")}</button></div></aside></div>
   `, "Тренировка");
   const chat = $("#chat-messages");
-  chat.scrollTop = chat.scrollHeight;
-  if (!state.awaitingNext) $("#answer-form").addEventListener("submit", submitAnswer);
+  chat.scrollTo({ top: chat.scrollHeight, behavior: "instant" });
+  $("#answer-form").addEventListener("submit", submitAnswer);
 }
 
 async function submitAnswer(event, skip = false) {
   event?.preventDefault();
   if (state.busy || state.recorder?.state === "recording") return;
   const answer = $("#answer-input")?.value || "";
+  const reviewing = state.session.reviewing;
   if (!skip && !answer.trim()) { toast("Сначала напиши или запиши ответ."); $("#answer-input").focus(); return; }
   state.busy = true;
   const key = draftKey();
   $("#submit-answer").disabled = true;
   $("#record-button").disabled = true;
-  $("#activity-label").textContent = "Разбираю ответ…";
+  $("#answer-input").disabled = true;
+  if ($("#next-question")) $("#next-question").disabled = true;
+  $("#activity-label").textContent = reviewing ? "Отвечаю…" : "Разбираю ответ…";
   cancelSpeech();
   try {
-    const result = await api(`/sessions/${state.session.id}/answer`, { method: "POST", body: { question_id: state.session.question.id, answer, skip } });
-    state.session = result.session;
-    state.awaitingNext = true;
+    const result = await api(`/sessions/${state.session.id}/${reviewing ? "discuss" : "answer"}`, { method: "POST", body: reviewing ? { question_id: state.session.question.id, message: answer } : { question_id: state.session.question.id, answer, skip } });
+    applySession(result.session);
     storage.remove(key);
     if (state.page === "training") {
       renderTraining();
-      speak(result.evaluation.feedback);
+      speak(reviewing ? result.discussion.reply : result.evaluation.feedback);
     }
   } catch (error) {
     toast(error.message);
     if ($("#submit-answer")) $("#submit-answer").disabled = false;
     if ($("#record-button")) $("#record-button").disabled = false;
+    if ($("#answer-input")) $("#answer-input").disabled = false;
+    if ($("#next-question")) $("#next-question").disabled = false;
     if ($("#activity-label")) $("#activity-label").textContent = "Можно попробовать ещё раз";
+  } finally { state.busy = false; }
+}
+
+async function nextQuestion() {
+  if (state.busy) return;
+  state.busy = true;
+  discardRecording();
+  cancelSpeech();
+  $("#next-question").disabled = true;
+  $("#answer-input").disabled = true;
+  try {
+    applySession(await api(`/sessions/${state.session.id}/next`, { method: "POST", body: { question_id: state.session.question.id } }));
+    renderTraining();
+    if (state.session.question) speak(state.session.question.question);
+  } catch (error) {
+    toast(error.message);
+    if ($("#next-question")) $("#next-question").disabled = false;
+    if ($("#answer-input")) $("#answer-input").disabled = false;
   } finally { state.busy = false; }
 }
 
@@ -152,7 +270,7 @@ function renderResults() {
   const assessed = session.attempts.filter((attempt) => attempt.mode === "ai");
   const skipped = session.attempts.filter((attempt) => attempt.mode === "skipped").length;
   const average = assessed.length ? Math.round(assessed.reduce((sum, attempt) => sum + attempt.score, 0) / assessed.length) : null;
-  setPage(`<div class="results"><div class="result-hero"><div class="result-symbol">✳</div><span class="eyebrow">ЕЩЁ ОДИН ШАГ ВПЕРЁД</span><h1>Практика завершена</h1><p>Теперь ты чуть лучше знаешь, на что обратить внимание.</p><div class="result-numbers"><div><strong>${session.answered}</strong><small>вопросов разобрано</small></div><div><strong>${average === null ? "—" : average + "%"}</strong><small>${average === null ? "AI-оценки пока нет" : "средняя AI-оценка"}</small></div><div><strong>${skipped}</strong><small>пропущено</small></div></div><p>${assessed.length ? "Оценка модели — ориентир для повторения. Главная ценность — в разборе." : "Демо-проверка не оценивает понимание. Посмотри объяснения и повтори сложные вопросы."}</p></div><div class="section-heading"><h2>Что разобрали</h2></div>${session.attempts.length ? session.attempts.map((attempt) => `<details class="result-row"><summary>${escapeHTML(attempt.question.title)}<span class="tag">${attempt.mode === "ai" ? attempt.score + "%" : attempt.mode === "skipped" ? "Пропущен" : "Демо"}</span></summary><p><strong>Твой ответ:</strong> ${escapeHTML(attempt.answer || "Вопрос пропущен")}</p><p>${escapeHTML(attempt.feedback)}</p></details>`).join("") : `<p class="helper">В этот раз ответов не было. Можно начать снова, когда будет удобно.</p>`}<div class="result-actions"><button class="button primary" data-action="start">Ещё одна тренировка ${icon("arrow")}</button><button class="button" data-action="home">На главную</button></div></div>`, "Итоги");
+  setPage(`<div class="results"><div class="result-hero"><div class="result-symbol">✳</div><span class="eyebrow">ЕЩЁ ОДИН ШАГ ВПЕРЁД</span><h1>Практика завершена</h1><p>Теперь ты чуть лучше знаешь, на что обратить внимание.</p><div class="result-numbers"><div><strong>${session.answered}</strong><small>вопросов разобрано</small></div><div><strong>${average === null ? "—" : average + "%"}</strong><small>${average === null ? "AI-оценки пока нет" : "средняя AI-оценка"}</small></div><div><strong>${skipped}</strong><small>пропущено</small></div></div><p>${assessed.length ? "Оценка модели — ориентир для повторения. Главная ценность — в разборе." : "Демо-проверка не оценивает понимание. Посмотри объяснения и повтори сложные вопросы."}</p></div><div class="section-heading"><h2>Что разобрали</h2></div>${session.attempts.length ? session.attempts.map((attempt) => `<details class="result-row"><summary>${escapeHTML(attempt.question.title)}<span class="tag">${attempt.mode === "ai" ? attempt.score + "%" : attempt.mode === "skipped" ? "Пропущен" : "Демо"}</span></summary><p><strong>Твой ответ:</strong> ${escapeHTML(attempt.answer || "Вопрос пропущен")}</p><p>${escapeHTML(attempt.feedback)}</p>${attempt.discussion?.length ? `<div class="history-discussion">${discussionHTML(attempt)}</div>` : ""}</details>`).join("") : `<p class="helper">В этот раз ответов не было. Можно начать снова, когда будет удобно.</p>`}<div class="result-actions"><button class="button primary" data-action="start">Ещё одна тренировка ${icon("arrow")}</button><button class="button" data-action="home">На главную</button></div></div>`, "Итоги");
 }
 
 async function renderLibrary() {
@@ -177,25 +295,96 @@ async function renderHistory() {
 
 function showSettings() {
   const config = state.config;
+  const fish = config.tts?.provider === "fish";
+  const speechReady = fish ? config.tts.ready : "speechSynthesis" in window;
   $("#settings-content").innerHTML = `
     <div class="connection"><div><strong>AI-тренер · OpenRouter</strong><small>${config.ai ? escapeHTML(config.model) : "Проверка смысла и персональный разбор"}</small></div><span class="${config.ai ? "connected" : ""}">${config.ai ? "Подключён" : "Не подключён"}</span></div>
     <div class="connection"><div><strong>Распознавание · Deepgram</strong><small>Голос → текст · русский и английский</small></div><span class="${config.deepgram ? "connected" : ""}">${config.deepgram ? "Подключён" : "Не подключён"}</span></div>
-    <div class="connection"><div><strong>Озвучка · ${isDesktop() ? "Windows" : "браузер"}</strong><small>Использует доступный русский голос системы</small></div><span class="connected">${"speechSynthesis" in window ? "Доступна" : "Недоступна"}</span></div>
-    <div class="settings-details"><p>Для подключения скопируй <code>.env.example</code> в <code>.env</code> в папке проекта. Укажи <code>DEEPGRAM_API_KEY</code>, <code>OPENROUTER_API_KEY</code> и <code>OPENROUTER_MODEL</code>. Затем останови приложение кнопкой ниже и снова открой ярлык.</p><p>Без ключей доступны карточки, текстовые ответы и демо-разбор. Ключи хранятся на сервере и не передаются в интерфейс.</p><details><summary>Данные и векторный поиск</summary><pre>${escapeHTML(config.database)} · ${config.cards} карточек\nКоллекция: ${escapeHTML(config.collection)}\nВекторизация: ${escapeHTML(config.embedding)}</pre><p>${config.semantic ? "Используется модель embeddings через OpenRouter." : "Сейчас используется воспроизводимый hashing по частям слов. Это лексический поиск; он не понимает синонимы. Для поиска по смыслу укажи OPENROUTER_EMBEDDING_MODEL в .env — карточки попадут в отдельную коллекцию."}</p><p>При голосовом вводе запись отправляется в Deepgram после нажатия «Закончить запись». Для AI-проверки текст ответа и критерии отправляются провайдеру модели через OpenRouter. Аудиозаписи на диск не сохраняются.</p></details></div><button class="button full" data-action="close-settings">Понятно</button><button class="shutdown-button" data-action="shutdown">Остановить приложение</button>`;
+    <div class="connection"><div><strong>Озвучка · ${fish ? "Fish Audio" : isDesktop() ? "Windows" : "браузер"}</strong><small>${fish ? `Голос ${escapeHTML(config.tts.voice_id.slice(0, 8))}… · ${escapeHTML(config.tts.model)}` : "Использует доступный русский голос системы"}</small></div><span class="${speechReady ? "connected" : ""}">${speechReady ? fish ? "Настроена" : "Доступна" : "Нужен ключ"}</span></div>
+    <button class="button full voice-preview" data-action="preview-voice" ${speechReady ? "" : "disabled"}>${icon("sound")} Послушать голос</button>
+    <div class="settings-details"><p>Для подключения укажи в <code>.env</code> ключи <code>DEEPGRAM_API_KEY</code>, <code>OPENROUTER_API_KEY</code> и название <code>OPENROUTER_MODEL</code>. Для выбранного голоса нужны <code>TTS_PROVIDER=fish</code> и <code>FISH_AUDIO_API_KEY</code>. После изменений закрой приложение и снова открой ярлык.</p><p>Ключи хранятся на сервере и не передаются в интерфейс. Кнопка «Послушать голос» проверяет озвучку даже при выключенном звуке тренировки.</p><details><summary>Данные и векторный поиск</summary><pre>${escapeHTML(config.database)} · ${config.cards} карточек\nКоллекция: ${escapeHTML(config.collection)}\nВекторизация: ${escapeHTML(config.embedding)}${fish ? `\nГолос Fish Audio: ${escapeHTML(config.tts.voice_id)}` : ""}</pre><p>${config.semantic ? "Используется модель embeddings через OpenRouter." : "Сейчас используется воспроизводимый hashing по частям слов. Это лексический поиск; он не понимает синонимы. Для поиска по смыслу укажи OPENROUTER_EMBEDDING_MODEL в .env — карточки попадут в отдельную коллекцию."}</p><p>При голосовом вводе запись отправляется в Deepgram после нажатия «Закончить запись». Для AI-проверки текст ответа и критерии отправляются провайдеру модели через OpenRouter.${fish ? " Текст вопросов и разборов отправляется в Fish Audio для озвучки. Повторные фразы берутся из ограниченного кэша в памяти сервера." : ""} Аудиозаписи на диск не сохраняются.</p></details></div><button class="button full" data-action="close-settings">Понятно</button><button class="shutdown-button" data-action="shutdown">Остановить приложение</button>`;
   if (!$("#settings-dialog").open) $("#settings-dialog").showModal();
+  speechStatus(speech.status);
 }
 
-function cancelSpeech() { if ("speechSynthesis" in window) speechSynthesis.cancel(); }
+function speechStatus(status) {
+  speech.status = status;
+  const indicator = $("#speech-indicator");
+  indicator.hidden = status === "idle";
+  indicator.innerHTML = `${status === "loading" ? '<span class="spinner"></span>' : icon("sound")}<span>${status === "loading" ? "Готовлю голос…" : "Озвучиваю"}</span>${icon("close")}`;
+  const preview = $(".voice-preview");
+  if (preview && !preview.disabled) {
+    preview.innerHTML = `${icon(status === "idle" ? "sound" : "stop")} ${status === "idle" ? "Послушать голос" : "Остановить озвучку"}`;
+    preview.dataset.action = status === "idle" ? "preview-voice" : "stop-preview";
+  }
+  const tonePreview = $(".voice-tone-preview");
+  tonePreview.innerHTML = `${icon(status === "idle" ? "sound" : "stop")} ${status === "idle" ? "Послушать интонацию" : "Остановить озвучку"}`;
+  tonePreview.dataset.action = status === "idle" ? "preview-tone" : "stop-preview";
+}
 
-function speak(text) {
-  if (!state.sound || !("speechSynthesis" in window)) return;
+function cancelSpeech() {
+  speech.version += 1;
+  speech.controller?.abort();
+  speech.controller = null;
+  if (speech.audio) { speech.audio.onended = null; speech.audio.onerror = null; speech.audio.pause(); speech.audio.removeAttribute("src"); speech.audio.load(); }
+  speech.audio = null;
+  speech.utterance = null;
+  if (speech.objectUrl) URL.revokeObjectURL(speech.objectUrl);
+  speech.objectUrl = null;
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  speechStatus("idle");
+}
+
+async function speak(text, { force = false } = {}) {
+  if ((!state.sound && !force) || state.recorder?.state === "recording") return;
+  if (state.volume === 0) { if (force) toast("Громкость голоса — 0%. Увеличь её в настройках голоса справа вверху."); return; }
   cancelSpeech();
+  if (state.config?.tts?.provider === "fish") {
+    if (!state.config.tts.ready) { toast("Для голоса Fish Audio добавь FISH_AUDIO_API_KEY в .env и перезапусти приложение."); return; }
+    const version = speech.version;
+    const controller = new AbortController();
+    speech.controller = controller;
+    speechStatus("loading");
+    try {
+      const response = await fetch("/api/speech", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "X-App-Token": state.config.token },
+        body: JSON.stringify({ text, tone: state.tone }),
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(typeof result.detail === "string" ? result.detail : "Не удалось озвучить сообщение.");
+      }
+      const blob = await response.blob();
+      if (speech.version !== version) return;
+      if (!blob.size || !blob.type.startsWith("audio/")) throw new Error("Сервис озвучки вернул некорректную запись.");
+      speech.objectUrl = URL.createObjectURL(blob);
+      const audio = new Audio(speech.objectUrl);
+      audio.volume = state.volume;
+      speech.audio = audio;
+      audio.onended = () => { if (speech.version === version) cancelSpeech(); };
+      audio.onerror = () => { if (speech.version === version) { cancelSpeech(); toast("Не удалось воспроизвести запись. Можно повторить озвучку рядом с сообщением."); } };
+      await audio.play();
+      if (speech.version === version) speechStatus("playing");
+    } catch (error) {
+      if (speech.version !== version || error.name === "AbortError") return;
+      cancelSpeech();
+      toast(error.name === "NotAllowedError" ? "Нажми кнопку динамика рядом с сообщением, чтобы включить воспроизведение." : error.message);
+    }
+    return;
+  }
+  if (!("speechSynthesis" in window)) { toast("Системная озвучка недоступна."); return; }
+  const version = speech.version;
   const utterance = new SpeechSynthesisUtterance(text);
+  speech.utterance = utterance;
+  utterance.volume = state.volume;
   utterance.lang = "ru-RU";
   utterance.rate = 1;
   const voice = speechSynthesis.getVoices().find((item) => item.lang.toLowerCase().startsWith("ru"));
   if (voice) utterance.voice = voice;
-  utterance.onerror = (event) => { if (!["canceled", "interrupted"].includes(event.error)) toast("Озвучка недоступна. Тот же текст есть в чате."); };
+  utterance.onstart = () => { if (speech.version === version) speechStatus("playing"); };
+  utterance.onend = () => { if (speech.version === version) cancelSpeech(); };
+  utterance.onerror = (event) => { if (speech.version === version && !["canceled", "interrupted"].includes(event.error)) { cancelSpeech(); toast("Озвучка недоступна. Тот же текст есть в чате."); } };
   speechSynthesis.speak(utterance);
 }
 
@@ -251,7 +440,7 @@ async function record() {
         field.value = [field.value.trim(), result.text].filter(Boolean).join(" ").slice(0, 12000);
         storage.set(draftKey(), field.value);
         if (!result.text.trim()) toast("Речь не обнаружена. Попробуй ещё раз или напиши ответ.");
-        else toast("Ответ распознан. Проверь текст и нажми «Проверить ответ».");
+        else toast(state.session.reviewing ? "Сообщение распознано. Проверь текст и нажми «Отправить»." : "Ответ распознан. Проверь текст и нажми «Проверить ответ».");
       } catch (error) { toast(error.message); }
       finally {
         state.busy = false;
@@ -276,8 +465,7 @@ async function finishSession() {
   if (state.busy) { toast("Дождись завершения проверки."); return; }
   discardRecording();
   cancelSpeech();
-  state.session = await api(`/sessions/${state.session.id}/finish`, { method: "POST" });
-  state.awaitingNext = false;
+  applySession(await api(`/sessions/${state.session.id}/finish`, { method: "POST" }));
   renderResults();
 }
 
@@ -300,22 +488,24 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const action = target.dataset.action;
-  if (state.busy && !["settings", "close-settings", "speak", "toggle-sound"].includes(action)) { toast("Дождись завершения запроса."); return; }
+  if (state.busy && !["settings", "close-settings", "speak", "toggle-sound", "preview-voice", "preview-tone", "stop-preview"].includes(action)) { toast("Дождись завершения запроса."); return; }
   try {
     if (action === "start") showStart();
     else if (action === "topic") showStart(target.dataset.topic);
     else if (["home", "library", "history"].includes(action)) location.hash = action;
     else if (action === "settings") showSettings();
+    else if (action === "preview-voice" || action === "preview-tone") await speak("Привет! Я твой тренер по машинному обучению. Сегодня разберём переобучение. Объясни своими словами, почему модель может ошибаться на новых данных.", { force: true });
+    else if (action === "stop-preview") cancelSpeech();
     else if (action === "close-settings") $("#settings-dialog").close();
     else if (action === "resume") location.hash = "training";
-    else if (action === "next") { state.awaitingNext = false; cancelSpeech(); renderTraining(); if (state.session.question) speak(state.session.question.question); }
+    else if (action === "next") await nextQuestion();
     else if (action === "finish") await finishSession();
     else if (action === "skip") { discardRecording(); await submitAnswer(null, true); }
     else if (action === "record") await record();
-    else if (action === "speak") { if (state.recorder?.state === "recording") return; speak(target.dataset.text); }
-    else if (action === "toggle-sound") { state.sound = !state.sound; storage.set("ml-sound", state.sound ? "on" : "off"); if (!state.sound) cancelSpeech(); target.classList.toggle("off", !state.sound); target.setAttribute("aria-pressed", state.sound); toast(state.sound ? "Озвучка включена." : "Озвучка выключена."); }
+    else if (action === "speak") { if (state.recorder?.state === "recording") return; speak(target.dataset.text, { force: true }); }
+    else if (action === "toggle-sound") { setAutoSpeech(!state.sound); toast(state.sound ? "Автоозвучка включена." : "Автоозвучка выключена. Сообщения можно послушать кнопкой динамика."); }
     else if (action === "filter") { state.libraryTopic = target.dataset.topic; await renderLibrary(); }
-    else if (action === "open-session") { state.session = await api(`/sessions/${target.dataset.id}`); state.awaitingNext = false; storage.set("ml-session", state.session.id); location.hash = "training"; }
+    else if (action === "open-session") { applySession(await api(`/sessions/${target.dataset.id}`)); storage.set("ml-session", state.session.id); location.hash = "training"; }
     else if (action === "reload") await route();
     else if (action === "shutdown") { discardRecording(); cancelSpeech(); if (isDesktop()) { await window.pywebview.api.close(); return; } await api("/shutdown", { method: "POST" }); $("#settings-dialog").close(); setPage(`<div class="empty-state">${icon("check")}<h3>Приложение остановлено</h3><p>Можно закрыть окно. Чтобы продолжить, снова нажми на ярлык ML Trainer.</p></div>`, "До встречи"); }
   } catch (error) { toast(error.message); }
@@ -332,6 +522,7 @@ document.addEventListener("keydown", (event) => {
 window.addEventListener("hashchange", route);
 window.addEventListener("pagehide", () => { discardRecording(); cancelSpeech(); });
 $("#settings-button").addEventListener("click", showSettings);
+$("#speech-indicator").addEventListener("click", cancelSpeech);
 $("#close-settings").addEventListener("click", () => $("#settings-dialog").close());
 $("#close-start").addEventListener("click", () => $("#start-dialog").close());
 $("#start-form").addEventListener("submit", startSession);
@@ -343,7 +534,7 @@ async function boot() {
     $("#mode-badge").textContent = state.config.ai ? "AI-тренер подключён" : "Демо-режим";
     $("#nav-count").textContent = state.config.cards;
     const sessionId = storage.get("ml-session");
-    if (sessionId) { try { state.session = await api(`/sessions/${sessionId}`); } catch { storage.remove("ml-session"); } }
+    if (sessionId) { try { applySession(await api(`/sessions/${sessionId}`)); } catch { storage.remove("ml-session"); } }
     await route();
   } catch {
     setPage(`<div class="error-state">Не удалось подключиться к локальному серверу. Закрой окно и снова открой ярлык ML Trainer.</div>`, "Подключение");

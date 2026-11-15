@@ -1,4 +1,5 @@
 import os
+import uuid
 from unittest.mock import Mock, patch
 
 import pytest
@@ -47,14 +48,15 @@ def test_second_launch_focuses_window_without_starting_server():
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows named mutex")
 def test_native_single_instance_lock_is_released():
-    first, second = SingleInstance(), SingleInstance()
+    name = "Local\\MLTrainerTest-" + uuid.uuid4().hex
+    first, second = SingleInstance(name), SingleInstance(name)
     try:
         assert first.acquire()
         assert not second.acquire()
     finally:
         first.close()
         second.close()
-    third = SingleInstance()
+    third = SingleInstance(name)
     try:
         assert third.acquire()
     finally:

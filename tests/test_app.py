@@ -9,7 +9,7 @@ from app.server import create_app
 
 
 def settings_at(path: Path):
-    return Settings(data_dir=path, deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="")
+    return Settings(data_dir=path, deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
 
 
 def authenticated(client):
@@ -46,9 +46,14 @@ def test_full_session_and_history_survive_restart(tmp_path):
         assert result["evaluation"]["mode"] == "demo"
         assert result["evaluation"]["score"] == 100
         assert result["session"]["answered"] == 1
-        state = result["session"]
+        assert result["session"]["reviewing"] and not result["session"]["completed"]
+        state = client.post(f"/api/sessions/{session_id}/next", headers=headers,
+                            json={"question_id": result["session"]["question"]["id"]}).json()
         response = client.post(f"/api/sessions/{session_id}/answer", headers=headers, json={"question_id": state["question"]["id"], "skip": True})
-        assert response.json()["session"]["completed"]
+        assert not response.json()["session"]["completed"]
+        assert response.json()["session"]["reviewing"]
+        assert client.post(f"/api/sessions/{session_id}/next", headers=headers,
+                           json={"question_id": state["question"]["id"]}).json()["completed"]
         assert client.get("/api/history").json()["sessions"][0]["completed_at"]
     with TestClient(create_app(settings)) as client:
         state = client.get(f"/api/sessions/{session_id}").json()

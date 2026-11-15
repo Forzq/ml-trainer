@@ -1,10 +1,13 @@
 """Browser smoke test using installed Edge and an isolated temporary database."""
 import json
+import base64
+import io
 import socket
 import sys
 import tempfile
 import threading
 import time
+import wave
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -22,7 +25,7 @@ def main():
     (ROOT / "logs").mkdir(exist_ok=True)
     (ROOT / ".pytest-tmp").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(dir=ROOT / ".pytest-tmp", prefix="browser-") as temporary:
-        settings = Settings(data_dir=Path(temporary), deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="")
+        settings = Settings(data_dir=Path(temporary), deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
@@ -48,9 +51,31 @@ def main():
                 page.goto(url)
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
                 assert page.locator(".topic-card").count() == 3
+                expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+                # Legacy mute must not silently disable the new default automatic narration.
+                assert page.evaluate("state.sound === true")
+                page.get_by_label("Настройки голоса", exact=True).click()
+                expect(page.locator("#auto-speech")).to_be_checked()
+                page.locator("#voice-volume").evaluate("el => { el.value='35'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
+                page.locator("#auto-speech").uncheck()
+                page.reload()
+                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
+                assert page.evaluate("state.volume === 0.35 && state.sound === false")
+                expect(page.locator("#voice-volume-output")).to_have_text("35%")
                 page.screenshot(path=str(ROOT / "logs/preview-home.png"), full_page=True)
+                page.get_by_role("button", name="Включить светлую тему", exact=True).click()
+                expect(page.locator("html")).to_have_attribute("data-theme", "light")
+                page.reload()
+                expect(page.locator("html")).to_have_attribute("data-theme", "light")
+                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
+                page.screenshot(path=str(ROOT / "logs/preview-light.png"), full_page=True)
+                page.get_by_role("button", name="Включить тёмную тему", exact=True).click()
+                page.reload()
+                expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
                 page.get_by_role("button", name="Подключения", exact=True).first.click()
                 expect(page.get_by_role("heading", name="Подключения", exact=True)).to_be_visible()
+                page.screenshot(path=str(ROOT / "logs/preview-settings.png"), full_page=True)
                 page.get_by_role("button", name="Понятно").click()
                 page.locator(".topic-card").first.click()
                 page.locator("#session-count").select_option("2")
@@ -65,16 +90,42 @@ def main():
                 expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_visible()
                 expect(page.locator(".message-text").last).to_contain_text("Демо-разбор")
                 page.screenshot(path=str(ROOT / "logs/preview-training.png"), full_page=True)
+                first_question = page.evaluate("state.session.question.id")
+                expect(page.locator("#answer-input")).to_be_visible()
+                page.locator("#answer-input").fill("Я уже упомянул новые данные. Почему ты считаешь ответ неполным?")
+                page.reload()
+                expect(page.locator("#answer-input")).to_have_value("Я уже упомянул новые данные. Почему ты считаешь ответ неполным?")
+                assert page.evaluate("state.session.reviewing")
+                assert page.evaluate("state.session.question.id") == first_question
+                page.get_by_role("button", name="Отправить", exact=True).click()
+                expect(page.locator("#answer-input")).to_have_value("")
+                expect(page.locator(".message-text").last).to_contain_text("Демо-режим")
+                expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_enabled()
+                page.screenshot(path=str(ROOT / "logs/preview-discussion.png"), full_page=True)
+                assert page.evaluate("state.session.attempts[0].discussion.length") == 1
                 page.get_by_role("button", name="Следующий вопрос", exact=True).click()
+                page.wait_for_function("state.session.current_index === 1 && !state.session.reviewing")
+                expect(page.locator(".message-text")).to_have_count(1)
+                expect(page.locator("#answer-input")).to_have_value("")
+                assert page.evaluate("state.session.question.id") != first_question
                 page.get_by_role("button", name="Пока не знаю — показать объяснение").click()
+                expect(page.get_by_role("button", name="Итоги тренировки")).to_be_visible()
+                assert not page.evaluate("state.session.completed")
+                page.locator("#answer-input").fill("Уточни ещё раз последний вопрос.")
+                page.get_by_role("button", name="Отправить", exact=True).click()
+                expect(page.locator("#answer-input")).to_have_value("")
+                assert page.evaluate("state.session.attempts[1].discussion.length") == 1
                 page.get_by_role("button", name="Итоги тренировки").click()
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
                 page.get_by_role("link", name="История", exact=True).click()
                 expect(page.locator(".history-item")).to_have_count(1)
                 page.get_by_role("button", name="Посмотреть", exact=True).click()
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
+                expect(page.locator(".history-discussion")).to_have_count(2)
+                expect(page.locator(".history-discussion").first).to_contain_text("Я уже упомянул новые данные")
                 page.get_by_role("link", name="Банк вопросов").click()
                 expect(page.locator(".question-card")).to_have_count(6)
+                page.screenshot(path=str(ROOT / "logs/preview-library.png"), full_page=True)
                 page.get_by_role("button", name="Метрики", exact=True).click()
                 expect(page.locator(".question-card")).to_have_count(2)
                 page.locator("#card-search").fill("recall")
@@ -96,8 +147,101 @@ def main():
                 page.get_by_role("button", name="Закончить запись", exact=True).click()
                 expect(page.locator("#answer-input")).to_have_value("Голосовой ответ из тестовой записи")
                 assert page.evaluate("state.stream === null"), "Microphone stream was not released"
+                # Validate the Fish playback path without making paid provider requests.
+                buffer = io.BytesIO()
+                with wave.open(buffer, "wb") as wav:
+                    wav.setnchannels(1)
+                    wav.setsampwidth(2)
+                    wav.setframerate(24000)
+                    wav.writeframes(b"\0" * (24000 * 2 * 3))
+                wav_bytes = buffer.getvalue()
+                spoken_texts = []
+                spoken_tones = []
+                def speech_response(route):
+                    spoken_texts.append(route.request.post_data_json["text"])
+                    spoken_tones.append(route.request.post_data_json["tone"])
+                    route.fulfill(body=wav_bytes, content_type="audio/wav")
+                page.route("**/api/speech", speech_response)
+                page.evaluate("state.config.tts = {provider:'fish', ready:true, voice_id:'1db1618b6eaf4571ac7db70e20eb6727', model:'s2.1-pro-free'}; syncVoiceControls()")
+                page.get_by_role("button", name="Подключения", exact=True).first.click()
+                page.get_by_role("button", name="Послушать голос", exact=True).click()
+                page.wait_for_function("speech.status === 'playing'")
+                assert page.evaluate("speech.audio && !speech.audio.paused")
+                assert page.evaluate("speech.audio.volume === 0.35")
+                page.get_by_role("button", name="Понятно", exact=True).click()
+                page.get_by_label("Настройки голоса", exact=True).click()
+                calls_before_volume = len(spoken_texts)
+                page.locator("#voice-volume").evaluate("el => { el.value='15'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
+                assert page.evaluate("speech.audio.volume === 0.15")
+                assert len(spoken_texts) == calls_before_volume
+                page.locator("#speech-indicator").click()
+                assert page.evaluate("speech.audio === null && speech.objectUrl === null && speech.status === 'idle'")
+                page.get_by_label("Настройки голоса", exact=True).click()
+                before_tone = len(spoken_texts)
+                page.locator("#voice-tone").select_option("calm")
+                page.screenshot(path=str(ROOT / "logs/preview-voice-controls.png"), full_page=True)
+                assert len(spoken_texts) == before_tone, "Selecting a tone must not send a synthesis request"
+                page.get_by_role("button", name="Послушать интонацию", exact=True).click()
+                page.wait_for_function("speech.status === 'playing'")
+                assert spoken_tones[-1] == "calm"
+                page.locator("#speech-indicator").click()
+                # A delayed response that ignores AbortSignal must not start audio after cancellation.
+                page.evaluate("""() => {
+                    window.fishOriginalFetch = window.fetch;
+                    window.fetch = (input, options) => String(input).includes('/api/speech')
+                        ? new Promise(resolve => { window.resolveLateSpeech = resolve; })
+                        : window.fishOriginalFetch(input, options);
+                    speak('test delayed audio', {force:true});
+                }""")
+                page.wait_for_function("speech.status === 'loading' && Boolean(window.resolveLateSpeech)")
+                page.locator("#speech-indicator").click()
+                page.evaluate("""encoded => {
+                    const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+                    window.resolveLateSpeech(new Response(bytes, {headers:{'Content-Type':'audio/wav'}}));
+                    window.fetch = window.fishOriginalFetch;
+                }""", base64.b64encode(wav_bytes).decode())
+                page.wait_for_timeout(150)
+                assert page.evaluate("speech.audio === null && speech.status === 'idle'")
+                # Submit an answer and assert feedback starts without a replay-button click.
+                page.get_by_label("Настройки голоса", exact=True).click()
+                page.locator("#auto-speech").check()
+                requests_before_answer = len(spoken_texts)
+                page.get_by_role("button", name="Проверить ответ", exact=True).click()
+                expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_visible()
+                page.wait_for_function("speech.status === 'playing'")
+                feedback = page.evaluate("state.session.attempts[state.session.attempts.length-1].feedback")
+                assert len(spoken_texts) == requests_before_answer + 1
+                assert spoken_texts[-1] == feedback
+                assert spoken_tones[-1] == "calm"
+                assert page.evaluate("speech.audio.volume === 0.15")
+                page.locator("#answer-input").fill("Не согласен с замечанием. Объясни, что именно я упустил.")
+                page.get_by_role("button", name="Отправить", exact=True).click()
+                expect(page.locator("#answer-input")).to_have_value("")
+                page.wait_for_function("speech.status === 'playing'")
+                feedback = page.evaluate("state.session.attempts[state.session.attempts.length-1].discussion.slice(-1)[0].reply")
+                assert spoken_texts[-1] == feedback
+                expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_enabled()
+                page.get_by_label("Настройки голоса", exact=True).click()
+                page.locator("#auto-speech").uncheck()
+                assert page.evaluate("speech.status === 'idle'")
+                page.get_by_role("button", name="Озвучить сообщение", exact=True).last.click()
+                page.wait_for_function("speech.status === 'playing'")
+                assert spoken_texts[-1] == feedback
+                assert page.evaluate("state.sound === false"), "Manual replay must not turn automatic narration on"
+                page.locator("#speech-indicator").click()
+                page.get_by_label("Настройки голоса", exact=True).click()
+                page.locator("#voice-volume").evaluate("el => { el.value='0'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
+                before_zero = len(spoken_texts)
+                page.get_by_role("button", name="Озвучить сообщение", exact=True).last.click()
+                expect(page.locator("#toast")).to_contain_text("0%")
+                assert len(spoken_texts) == before_zero
+                page.get_by_label("Настройки голоса", exact=True).click()
+                page.locator("#voice-volume").evaluate("el => { el.value='15'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
                 page.get_by_role("button", name="Завершить", exact=True).click()
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
+                page.reload()
+                expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
+                assert page.evaluate("state.volume === 0.15 && state.sound === false && state.tone === 'calm'")
                 page.get_by_role("button", name="На главную", exact=True).click()
                 page.set_viewport_size({"width": 390, "height": 844})
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
@@ -105,7 +249,7 @@ def main():
                 page.screenshot(path=str(ROOT / "logs/preview-mobile.png"), full_page=True)
                 assert errors == [], errors
                 browser.close()
-                print(json.dumps({"result": "passed", "checks": ["home", "settings", "topic session", "draft restore", "demo evaluation", "skip", "results", "history", "vector search", "microphone recording and release", "mobile layout"], "javascript_errors": errors}, ensure_ascii=False))
+                print(json.dumps({"result": "passed", "checks": ["dark default", "theme switching and persistence", "home", "settings", "topic session", "draft restore", "demo evaluation", "skip", "results", "history", "vector search", "microphone recording and release", "Fish playback and stop", "late TTS response cancellation", "automatic feedback narration", "manual replay while auto off", "live volume without new request", "zero volume", "voice preferences persistence", "mobile layout"], "javascript_errors": errors}, ensure_ascii=False))
         finally:
             server.should_exit = True
             thread.join(timeout=10)

@@ -2,6 +2,7 @@
 import ctypes
 import json
 import logging
+import os
 import subprocess
 import time
 import urllib.error
@@ -70,7 +71,8 @@ class LocalServer:
 
 
 class SingleInstance:
-    def __init__(self):
+    def __init__(self, name="Local\\MLTrainerDesktopV1"):
+        self.name = name
         self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         self.kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
         self.kernel.CreateMutexW.restype = ctypes.c_void_p
@@ -78,7 +80,7 @@ class SingleInstance:
         self.handle = None
 
     def acquire(self):
-        self.handle = self.kernel.CreateMutexW(None, False, "Local\\MLTrainerDesktopV1")
+        self.handle = self.kernel.CreateMutexW(None, False, self.name)
         if not self.handle:
             raise ctypes.WinError(ctypes.get_last_error())
         return ctypes.get_last_error() != 183
@@ -125,11 +127,37 @@ def ask_microphone(window):
     ) == DialogResult.Yes
 
 
+def set_native_theme(window, theme):
+    """Called on the WinForms UI thread; unsupported DWM attributes are ignored."""
+    from System.Drawing import ColorTranslator
+
+    dark = theme == "dark"
+    background = "#14141c" if dark else "#fafbfc"
+    native = window.native
+    native.BackColor = ColorTranslator.FromHtml(background)
+    native.webview.DefaultBackgroundColor = ColorTranslator.FromHtml("#101017" if dark else "#f7f8fa")
+    try:
+        dwm = ctypes.windll.dwmapi.DwmSetWindowAttribute
+        dwm.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_uint]
+        dwm.restype = ctypes.c_long
+        handle = native.Handle.ToInt64()
+        enabled = ctypes.c_int(dark)
+        dwm(handle, 20, ctypes.byref(enabled), ctypes.sizeof(enabled))
+        # On Windows 11 the caption and caption text can match the application palette.
+        caption = ctypes.c_uint(int.from_bytes(bytes.fromhex(background[1:]), "little"))
+        foreground = ctypes.c_uint(0x00F7EDEF if dark else 0x00362C20)
+        dwm(handle, 35, ctypes.byref(caption), ctypes.sizeof(caption))
+        dwm(handle, 36, ctypes.byref(foreground), ctypes.sizeof(foreground))
+    except (OSError, AttributeError):
+        LOG.debug("Custom window frame theme is unavailable", exc_info=True)
+
+
 def configure_native(window, url=URL):
     """Attach native handlers on the UI thread before the first page is used."""
     from Microsoft.Web.WebView2.Core import CoreWebView2PermissionKind, CoreWebView2PermissionState
 
     control = window.native.webview
+    set_native_theme(window, "dark")
     microphone_allowed = False
     initialized = False
 
@@ -172,14 +200,26 @@ class DesktopApi:
         if self._window:
             self._window.destroy()
 
+    def set_theme(self, theme):
+        if theme not in ("dark", "light"):
+            raise ValueError("Unknown theme")
+        if self._window:
+            from System import Action
+
+            self._window.native.BeginInvoke(Action(lambda: set_native_theme(self._window, theme)))
+
 
 def open_window(server, on_loaded=None, profile_path=None):
     import webview
 
+    # App-owned audio should play after an asynchronous TTS request as well as a click.
+    browser_args = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+    if "--autoplay-policy=" not in browser_args:
+        os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = browser_args + " --autoplay-policy=no-user-gesture-required"
     api = DesktopApi()
     window = webview.create_window(
         TITLE, server.url, js_api=api, width=1320, height=900, min_size=(900, 650),
-        background_color="#f7f8fa", text_select=True,
+        background_color="#101017", text_select=True,
     )
     api._window = window
     window.events.before_show += lambda: configure_native(window, server.url)

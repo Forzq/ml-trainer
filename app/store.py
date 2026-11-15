@@ -34,7 +34,22 @@ class Store:
                     mode TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(session_id, question_id)
                 );
+                CREATE TABLE IF NOT EXISTS discussions (
+                    id INTEGER PRIMARY KEY, session_id TEXT NOT NULL, question_id INTEGER NOT NULL,
+                    message TEXT NOT NULL, reply TEXT NOT NULL, mode TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS discussions_question ON discussions(session_id, question_id, id);
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
+            if "current_index" not in columns:
+                db.execute("ALTER TABLE sessions ADD COLUMN current_index INTEGER NOT NULL DEFAULT 0")
+                # Old versions advanced immediately after grading. Preserve their pending question.
+                for session_id, raw_ids in db.execute("SELECT id, question_ids FROM sessions").fetchall():
+                    ids = json.loads(raw_ids)
+                    done = {row[0] for row in db.execute("SELECT question_id FROM attempts WHERE session_id=?", (session_id,))}
+                    index = next((i for i, question_id in enumerate(ids) if question_id not in done), max(0, len(ids) - 1))
+                    db.execute("UPDATE sessions SET current_index=? WHERE id=?", (index, session_id))
         self.cards = json.loads((ROOT / "content" / "questions.json").read_text(encoding="utf-8"))
         self.by_id = {card["id"]: card for card in self.cards}
         self.collection = "ml_questions_" + hashlib.sha256(self.embeddings.name.encode()).hexdigest()[:12]

@@ -4,18 +4,20 @@ import secrets
 import threading
 import uuid
 from contextlib import asynccontextmanager
+from typing import Literal
 
 import httpx
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import ROOT, Settings
 from app.store import Store
-from app.trainer import evaluate
+from app.speech import Speech, SpeechError
+from app.trainer import discuss, evaluate
 
 LOG = logging.getLogger("ml-trainer")
 TOPICS = [
@@ -37,6 +39,7 @@ def create_app(settings: Settings | None = None):
         app.state.store = Store(settings)
         app.state.token = secrets.token_urlsafe(32)
         app.state.session_lock = threading.Lock()
+        app.state.speech = Speech(settings)
         yield
         app.state.store.close()
 
@@ -72,6 +75,8 @@ def create_app(settings: Settings | None = None):
         return {
             "token": app.state.token, "ai": settings.ai_enabled,
             "deepgram": bool(settings.deepgram_key), "model": settings.model,
+            "tts": {"provider": settings.tts_provider, "ready": settings.fish_enabled,
+                    "voice_id": settings.fish_voice_id, "model": settings.fish_model},
             "embedding": store.embeddings.name, "semantic": store.embeddings.remote,
             "database": "Qdrant Server" if settings.qdrant_url else "Qdrant Local",
             "collection": store.collection, "cards": len(store.cards),
@@ -95,23 +100,31 @@ def create_app(settings: Settings | None = None):
     def session_state(session_id):
         store = app.state.store
         with store.connect() as db:
-            row = db.execute("SELECT id, topic, question_ids, completed_at FROM sessions WHERE id=?", (session_id,)).fetchone()
+            row = db.execute("SELECT id, topic, question_ids, completed_at, current_index FROM sessions WHERE id=?", (session_id,)).fetchone()
             if not row:
                 raise HTTPException(404, "Тренировка не найдена.")
             attempts = db.execute(
                 "SELECT question_id, answer, feedback, score, mode FROM attempts WHERE session_id=? ORDER BY id",
                 (session_id,),
             ).fetchall()
+            turns = db.execute(
+                "SELECT id, question_id, message, reply, mode, created_at FROM discussions WHERE session_id=? ORDER BY id",
+                (session_id,),
+            ).fetchall()
         ids = json.loads(row[2])
         done = {a[0] for a in attempts}
-        pending = [i for i in ids if i not in done and i in store.by_id]
-        complete = bool(row[3]) or not pending
+        index = min(row[4], max(0, len(ids) - 1))
+        active_id = ids[index] if ids else None
+        complete = bool(row[3]) or active_id not in store.by_id
         return {
             "id": row[0], "topic": row[1], "total": len(ids), "answered": len(attempts),
-            "completed": complete,
-            "question": public_card(store.by_id[pending[0]]) if pending and not complete else None,
+            "completed": complete, "current_index": index,
+            "reviewing": not complete and active_id in done,
+            "question": public_card(store.by_id[active_id]) if not complete else None,
             "attempts": [{**json.loads(a[2]), "question": public_card(store.by_id[a[0]]),
-                          "answer": a[1], "score": a[3], "mode": a[4]} for a in attempts if a[0] in store.by_id],
+                          "answer": a[1], "score": a[3], "mode": a[4],
+                          "discussion": [{"id": t[0], "message": t[2], "reply": t[3], "mode": t[4], "created_at": t[5]}
+                                         for t in turns if t[1] == a[0]]} for a in attempts if a[0] in store.by_id],
         }
 
     class NewSession(BaseModel):
@@ -150,6 +163,8 @@ def create_app(settings: Settings | None = None):
             state = session_state(session_id)
             if state["completed"]:
                 raise HTTPException(409, "Эта тренировка уже завершена.")
+            if state["reviewing"]:
+                raise HTTPException(409, "Ответ уже разобран. Можно обсудить его в чате или перейти к следующему вопросу.")
             if body.question_id != state["question"]["id"]:
                 raise HTTPException(409, "Вопрос уже изменился. Обнови тренировку.")
             text = body.answer.strip()
@@ -167,11 +182,50 @@ def create_app(settings: Settings | None = None):
             with app.state.store.connect() as db:
                 db.execute("INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES(?,?,?,?,?,?)",
                            (session_id, body.question_id, text, json.dumps(result, ensure_ascii=False), result["score"], result["mode"]))
-                ids = db.execute("SELECT question_ids FROM sessions WHERE id=?", (session_id,)).fetchone()[0]
-                count = db.execute("SELECT COUNT(*) FROM attempts WHERE session_id=?", (session_id,)).fetchone()[0]
-                if count >= len(json.loads(ids)):
-                    db.execute("UPDATE sessions SET completed_at=CURRENT_TIMESTAMP WHERE id=?", (session_id,))
             return {"evaluation": result, "session": session_state(session_id)}
+
+    class DiscussionMessage(BaseModel):
+        question_id: int
+        message: str = Field(min_length=1, max_length=12000)
+
+    @app.post("/api/sessions/{session_id}/discuss")
+    def discussion(session_id: str, body: DiscussionMessage):
+        with app.state.session_lock:
+            state = session_state(session_id)
+            if state["completed"] or not state["reviewing"]:
+                raise HTTPException(409, "Обсуждение доступно после разбора текущего ответа.")
+            if state["question"]["id"] != body.question_id:
+                raise HTTPException(409, "Вопрос уже изменился. Обнови тренировку.")
+            text = body.message.strip()
+            if not text:
+                raise HTTPException(422, "Напиши или запиши уточнение.")
+            attempt = next(item for item in state["attempts"] if item["question"]["id"] == body.question_id)
+            try:
+                result = discuss(app.state.store.by_id[body.question_id], attempt, text, settings)
+            except (httpx.HTTPError, ValueError, KeyError, IndexError):
+                raise HTTPException(502, "Тренер не смог ответить. Сообщение осталось в поле ввода; можно отправить ещё раз.")
+            with app.state.store.connect() as db:
+                db.execute("INSERT INTO discussions(session_id,question_id,message,reply,mode) VALUES(?,?,?,?,?)",
+                           (session_id, body.question_id, text, result["reply"], result["mode"]))
+            return {"discussion": result, "session": session_state(session_id)}
+
+    class NextQuestion(BaseModel):
+        question_id: int
+
+    @app.post("/api/sessions/{session_id}/next")
+    def next_question(session_id: str, body: NextQuestion):
+        with app.state.session_lock:
+            state = session_state(session_id)
+            if state["completed"] or not state["reviewing"]:
+                raise HTTPException(409, "Сначала ответь на текущий вопрос или пропусти его.")
+            if state["question"]["id"] != body.question_id:
+                raise HTTPException(409, "Вопрос уже изменился. Обнови тренировку.")
+            with app.state.store.connect() as db:
+                if state["current_index"] + 1 >= state["total"]:
+                    db.execute("UPDATE sessions SET completed_at=CURRENT_TIMESTAMP WHERE id=?", (session_id,))
+                else:
+                    db.execute("UPDATE sessions SET current_index=current_index+1 WHERE id=?", (session_id,))
+            return session_state(session_id)
 
     @app.post("/api/sessions/{session_id}/finish")
     def finish(session_id: str):
@@ -203,6 +257,18 @@ def create_app(settings: Settings | None = None):
         except (httpx.HTTPError, KeyError, IndexError, ValueError):
             raise HTTPException(502, "Deepgram не смог распознать запись. Проверь ключ и подключение.")
         return {"text": text}
+
+    class SpeechRequest(BaseModel):
+        text: str = Field(min_length=1, max_length=6000)
+        tone: Literal["natural", "calm", "friendly", "excited", "soft", "whisper"] = "natural"
+
+    @app.post("/api/speech")
+    async def speech(body: SpeechRequest):
+        try:
+            audio = await app.state.speech.synthesize(body.text, body.tone)
+        except SpeechError as error:
+            raise HTTPException(error.status, error.detail) from None
+        return Response(audio, media_type="audio/mpeg")
 
     @app.post("/api/shutdown")
     def shutdown():
