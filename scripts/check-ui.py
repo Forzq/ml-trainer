@@ -23,8 +23,9 @@ from app.server import create_app
 
 def main():
     (ROOT / "logs").mkdir(exist_ok=True)
-    (ROOT / ".pytest-tmp").mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=ROOT / ".pytest-tmp", prefix="browser-") as temporary:
+    # Keep browser fixtures outside pytest's managed directory and its Windows ACLs.
+    (ROOT / "logs/ui-check").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=ROOT / "logs/ui-check", prefix="browser-") as temporary:
         settings = Settings(data_dir=Path(temporary), deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
@@ -50,7 +51,8 @@ def main():
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(url)
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
-                assert page.locator(".topic-card").count() == 3
+                assert page.locator(".topic-card").count() == 5
+                assert page.locator(".topic-card:disabled").count() == 0
                 expect(page.locator("html")).to_have_attribute("data-theme", "dark")
                 # Legacy mute must not silently disable the new default automatic narration.
                 assert page.evaluate("state.sound === true")
@@ -124,12 +126,33 @@ def main():
                 expect(page.locator(".history-discussion")).to_have_count(2)
                 expect(page.locator(".history-discussion").first).to_contain_text("Я уже упомянул новые данные")
                 page.get_by_role("link", name="Банк вопросов").click()
-                expect(page.locator(".question-card")).to_have_count(6)
+                expect(page.locator(".question-card")).to_have_count(500)
                 page.screenshot(path=str(ROOT / "logs/preview-library.png"), full_page=True)
-                page.get_by_role("button", name="Метрики", exact=True).click()
-                expect(page.locator(".question-card")).to_have_count(2)
+                page.get_by_role("button", name="Классический ML", exact=True).click()
+                page.locator("#library-level").select_option("Senior")
+                expect(page.locator(".question-card")).to_have_count(20)
+                assert page.locator(".question-card-footer > .tag:first-child").all_text_contents() == ["Senior"] * 20
+                page.locator("#library-level").select_option("all")
+                expect(page.locator(".question-card")).to_have_count(100)
                 page.locator("#card-search").fill("recall")
-                expect(page.locator(".question-card").first.locator("h3")).to_have_text("Precision и recall")
+                expect(page.locator(".question-card h3").filter(has_text="Precision и recall")).to_have_count(1)
+                page.locator("#card-search").fill("")
+                page.get_by_role("button", name="Data Science", exact=True).click()
+                expect(page.locator(".question-card")).to_have_count(100)
+                page.locator("#library-level").select_option("Middle")
+                expect(page.locator(".question-card")).to_have_count(40)
+                page.get_by_role("button", name="NLP", exact=True).click()
+                expect(page.locator(".question-card")).to_have_count(40)
+                page.locator("#library-level").select_option("Senior")
+                expect(page.locator(".question-card")).to_have_count(20)
+                assert page.locator(".question-card > .eyebrow").all_text_contents() == ["NLP"] * 20
+                page.get_by_role("button", name="CV", exact=True).click()
+                expect(page.locator(".question-card")).to_have_count(20)
+                assert page.locator(".question-card > .eyebrow").all_text_contents() == ["CV"] * 20
+                page.get_by_role("button", name="DL", exact=True).click()
+                page.locator("#library-level").select_option("Middle")
+                expect(page.locator(".question-card")).to_have_count(40)
+                assert page.locator(".question-card > .eyebrow").all_text_contents() == ["DL"] * 40
                 # Exercise actual browser recording, with only the provider response mocked.
                 def configured(route):
                     response = route.fetch()
@@ -137,15 +160,40 @@ def main():
                     config["deepgram"] = True
                     route.fulfill(response=response, json=config)
                 page.route("**/api/config", configured)
-                page.route("**/api/transcribe", lambda route: route.fulfill(json={"text": "Голосовой ответ из тестовой записи"}))
+                transcriptions = []
+                def transcription_response(route):
+                    transcriptions.append(route.request.post_data_buffer.decode("utf-8", errors="replace"))
+                    if len(transcriptions) == 1:
+                        route.fulfill(json={"text": "Я сравню ROC-AUC и PR-AUC, но не уверен.",
+                                            "raw_text": "Ээ, я сравню rock aug и pr aug, но не уверен.", "cleanup": "applied"})
+                    else:
+                        route.fulfill(json={"text": "Эм, это моя оговорка.", "raw_text": "Эм, это моя оговорка.", "cleanup": "unavailable"})
+                page.route("**/api/transcribe", transcription_response)
                 page.goto(url)
                 page.get_by_role("button", name="Начать тренировку", exact=True).click()
+                page.locator("#session-topic").select_option("cv")
+                page.locator("#session-level").select_option("Middle")
                 page.get_by_role("button", name="Начать тренировку", exact=True).last.click()
+                page.wait_for_function("state.session?.question?.level === 'Middle' && state.session?.question?.topic_id === 'cv'")
+                assert page.evaluate("state.session.question.level") == "Middle"
+                assert page.evaluate("state.session.question.topic_id") == "cv"
+                page.locator("#answer-input").fill("Мой пример:")
                 page.get_by_role("button", name="Ответить голосом", exact=True).click()
                 expect(page.get_by_role("button", name="Закончить запись", exact=True)).to_be_visible()
                 page.wait_for_timeout(1200)
                 page.get_by_role("button", name="Закончить запись", exact=True).click()
-                expect(page.locator("#answer-input")).to_have_value("Голосовой ответ из тестовой записи")
+                expect(page.locator("#answer-input")).to_have_value("Мой пример: Я сравню ROC-AUC и PR-AUC, но не уверен.")
+                expect(page.locator("#transcription-review")).to_contain_text("Ээ, я сравню rock aug и pr aug, но не уверен.")
+                page.locator("#transcription-review summary").click()
+                expect(page.locator("#transcription-review p")).to_be_visible()
+                assert 'name="session_id"' in transcriptions[0] and 'name="question_id"' in transcriptions[0]
+                page.get_by_role("button", name="Ответить голосом", exact=True).click()
+                expect(page.get_by_role("button", name="Закончить запись", exact=True)).to_be_visible()
+                page.wait_for_timeout(500)
+                page.get_by_role("button", name="Закончить запись", exact=True).click()
+                expect(page.locator("#answer-input")).to_have_value("Мой пример: Я сравню ROC-AUC и PR-AUC, но не уверен. Эм, это моя оговорка.")
+                expect(page.locator("#toast")).to_contain_text("очистка недоступна")
+                expect(page.locator("#transcription-review")).to_have_count(0)
                 assert page.evaluate("state.stream === null"), "Microphone stream was not released"
                 # Validate the Fish playback path without making paid provider requests.
                 buffer = io.BytesIO()

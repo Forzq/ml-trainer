@@ -14,6 +14,7 @@ class Settings:
     deepgram_key: str = os.getenv("DEEPGRAM_API_KEY", "")
     openrouter_key: str = os.getenv("OPENROUTER_API_KEY", "")
     model: str = os.getenv("OPENROUTER_MODEL", "")
+    transcription_model: str = os.getenv("OPENROUTER_TRANSCRIPTION_MODEL", "")
     embedding_model: str = os.getenv("OPENROUTER_EMBEDDING_MODEL", "")
     qdrant_url: str = os.getenv("QDRANT_URL", "")
     qdrant_key: str = os.getenv("QDRANT_API_KEY", "")
@@ -21,10 +22,19 @@ class Settings:
     fish_key: str = os.getenv("FISH_AUDIO_API_KEY", "")
     fish_voice_id: str = os.getenv("FISH_AUDIO_VOICE_ID", "1db1618b6eaf4571ac7db70e20eb6727")
     fish_model: str = os.getenv("FISH_AUDIO_MODEL", "s2.1-pro-free")
+    fish_latency: str = os.getenv("FISH_AUDIO_LATENCY", "low")
 
     @property
     def ai_enabled(self) -> bool:
         return bool(self.openrouter_key and self.model)
+
+    @property
+    def transcription_model_name(self) -> str:
+        return self.transcription_model or self.model
+
+    @property
+    def transcription_enabled(self) -> bool:
+        return bool(self.openrouter_key and self.transcription_model_name)
 
     @property
     def fish_enabled(self) -> bool:

@@ -9,7 +9,7 @@ from test_app import authenticated, settings_at
 
 
 def start(client, headers, count=2):
-    return client.post("/api/sessions", json={"topic": "fundamentals", "count": count}, headers=headers).json()
+    return client.post("/api/sessions", json={"topic": "classical_ml", "count": count}, headers=headers).json()
 
 
 def answer(client, headers, state, text="Модель запоминает шум обучающей выборки."):
@@ -145,3 +145,5 @@ def test_old_database_migration_preserves_pending_question(tmp_path):
         assert state["question"]["id"] == 2
         assert state["current_index"] == 1 and not state["reviewing"]
         assert state["attempts"][0]["answer"] == "Старый ответ"
+        assert state["topic"] == "classical_ml"
+        assert client.get("/api/history").json()["sessions"][0]["topic"] == "classical_ml"

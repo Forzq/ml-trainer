@@ -79,6 +79,14 @@
 .history-discussion { margin: 20px 0 0; border-top: 1px solid var(--line); padding-top: 15px; }
 .history-discussion .message-text { font-size: 12px; }
 .discussion-composer textarea { min-height: 80px; }
+.transcription-review { margin: 10px 0; font-size: 13px; color: var(--muted); }
+.transcription-review summary { cursor: pointer; }
+.transcription-review p { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.topic-card:disabled { opacity: .55; cursor: default; }
+.topic-card:disabled:hover { transform: none; }
+.topic-meta span { line-height: 1.6; }
+.level-filter { display: flex; align-items: center; gap: 12px; margin: 14px 0; color: var(--muted); font-size: 13px; }
+.level-filter select { width: auto; min-width: 150px; margin: 0; }
 .next-panel p { max-width: 340px; line-height: 1.75; }
 [data-theme="dark"] .voice-controls-panel { border-color: #59406c; background: #201927; box-shadow: 0 16px 50px #00000070; }
 @media (max-width: 1100px) { .speech-indicator > span:not(.spinner) { display: none; } .topbar-right { gap: 9px; } }

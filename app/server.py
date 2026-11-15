@@ -8,8 +8,8 @@ from typing import Literal
 
 import httpx
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -18,13 +18,10 @@ from app.config import ROOT, Settings
 from app.store import Store
 from app.speech import Speech, SpeechError
 from app.trainer import discuss, evaluate
+from app.transcription import clean_transcript
+from app.catalog import LEVELS, TOPICS, canonical_topic
 
 LOG = logging.getLogger("ml-trainer")
-TOPICS = [
-    {"id": "fundamentals", "name": "Основы ML", "description": "Обобщение, выборки и обучение", "symbol": "◈"},
-    {"id": "metrics", "name": "Метрики", "description": "Качество модели и цена ошибок", "symbol": "◷"},
-    {"id": "linear", "name": "Линейные модели", "description": "Регрессия, веса и регуляризация", "symbol": "∿"},
-]
 
 
 def public_card(card):
@@ -75,20 +72,24 @@ def create_app(settings: Settings | None = None):
         return {
             "token": app.state.token, "ai": settings.ai_enabled,
             "deepgram": bool(settings.deepgram_key), "model": settings.model,
+            "transcription": {"ready": settings.transcription_enabled, "model": settings.transcription_model_name},
             "tts": {"provider": settings.tts_provider, "ready": settings.fish_enabled,
                     "voice_id": settings.fish_voice_id, "model": settings.fish_model},
             "embedding": store.embeddings.name, "semantic": store.embeddings.remote,
             "database": "Qdrant Server" if settings.qdrant_url else "Qdrant Local",
             "collection": store.collection, "cards": len(store.cards),
-            "topics": [dict(topic, count=sum(c["topic_id"] == topic["id"] for c in store.cards)) for topic in TOPICS],
+            "levels": list(LEVELS),
+            "topics": [dict(topic, count=sum(c["topic_id"] == topic["id"] for c in store.cards),
+                            levels={level: sum(c["topic_id"] == topic["id"] and c["level"] == level for c in store.cards)
+                                    for level in LEVELS}) for topic in TOPICS],
         }
 
     @app.get("/api/cards")
-    def cards(q: str = "", topic: str = "all"):
+    def cards(q: str = "", topic: str = "all", level: Literal["all", "Junior", "Middle", "Senior"] = "all"):
         if len(q) > 500:
             raise HTTPException(422, "Поисковый запрос слишком длинный.")
         try:
-            rows = app.state.store.search(q, topic)
+            rows = app.state.store.search(q, topic, level)
         except httpx.HTTPError:
             raise HTTPException(502, "Сервис векторизации недоступен. Проверь настройки embeddings.")
         return {"cards": [dict(public_card(c), **({"similarity": c["similarity"]} if "similarity" in c else {})) for c in rows]}
@@ -117,7 +118,7 @@ def create_app(settings: Settings | None = None):
         active_id = ids[index] if ids else None
         complete = bool(row[3]) or active_id not in store.by_id
         return {
-            "id": row[0], "topic": row[1], "total": len(ids), "answered": len(attempts),
+            "id": row[0], "topic": canonical_topic(row[1]), "total": len(ids), "answered": len(attempts),
             "completed": complete, "current_index": index,
             "reviewing": not complete and active_id in done,
             "question": public_card(store.by_id[active_id]) if not complete else None,
@@ -129,6 +130,7 @@ def create_app(settings: Settings | None = None):
 
     class NewSession(BaseModel):
         topic: str = "all"
+        level: Literal["all", "Junior", "Middle", "Senior"] = "all"
         count: int = Field(default=4, ge=1, le=20)
 
     @app.post("/api/sessions")
@@ -136,9 +138,9 @@ def create_app(settings: Settings | None = None):
         store = app.state.store
         if body.topic not in ["all"] + [t["id"] for t in TOPICS]:
             raise HTTPException(422, "Неизвестная тема.")
-        selected = store.search(topic=body.topic)
+        selected = store.search(topic=body.topic, level=body.level)
         if not selected:
-            raise HTTPException(422, "В этой теме пока нет вопросов.")
+            raise HTTPException(422, "Для выбранной темы и сложности пока нет вопросов.")
         # Prefer less-practiced cards; deterministic order makes the starter easy to inspect.
         with store.connect() as db:
             counts = dict(db.execute("SELECT question_id, COUNT(*) FROM attempts GROUP BY question_id"))
@@ -236,7 +238,8 @@ def create_app(settings: Settings | None = None):
             return session_state(session_id)
 
     @app.post("/api/transcribe")
-    async def transcribe(audio: UploadFile = File(...)):
+    async def transcribe(audio: UploadFile = File(...), session_id: str | None = Form(None),
+                         question_id: int | None = Form(None)):
         if not settings.deepgram_key:
             raise HTTPException(409, "Для распознавания добавь DEEPGRAM_API_KEY в .env и перезапусти приложение.")
         raw = await audio.read(20 * 1024 * 1024 + 1)
@@ -244,6 +247,14 @@ def create_app(settings: Settings | None = None):
             raise HTTPException(413, "Запись слишком длинная. Лимит — 20 МБ.")
         if not raw:
             raise HTTPException(422, "Запись пустая.")
+        context = None
+        if (session_id is None) != (question_id is None):
+            raise HTTPException(422, "Для контекста записи нужны сессия и вопрос.")
+        if session_id is not None:
+            current = session_state(session_id)
+            if current["completed"] or current["question"]["id"] != question_id:
+                raise HTTPException(409, "Вопрос уже изменился. Запиши ответ на текущий вопрос.")
+            context = current["question"]
         try:
             async with httpx.AsyncClient(timeout=90) as client:
                 response = await client.post(
@@ -254,16 +265,50 @@ def create_app(settings: Settings | None = None):
                 )
                 response.raise_for_status()
                 text = response.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
-        except (httpx.HTTPError, KeyError, IndexError, ValueError):
+                if not isinstance(text, str):
+                    raise ValueError("Invalid Deepgram transcript")
+        except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError):
             raise HTTPException(502, "Deepgram не смог распознать запись. Проверь ключ и подключение.")
-        return {"text": text}
+        raw_text = text
+        cleanup = "disabled" if not settings.transcription_enabled else "skipped"
+        if settings.transcription_enabled and text.strip():
+            try:
+                text = await clean_transcript(raw_text, settings, context)
+                cleanup = "applied"
+            except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError):
+                # Preserve the recognized speech even when the optional editor is unavailable.
+                LOG.warning("Transcript cleanup unavailable; returning original recognition")
+                text = raw_text
+                cleanup = "unavailable"
+        return {"text": text, "raw_text": raw_text, "cleanup": cleanup}
 
     class SpeechRequest(BaseModel):
         text: str = Field(min_length=1, max_length=6000)
         tone: Literal["natural", "calm", "friendly", "excited", "soft", "whisper"] = "natural"
+        stream: bool = False
 
     @app.post("/api/speech")
     async def speech(body: SpeechRequest):
+        if body.stream:
+            iterator = app.state.speech.stream(body.text, body.tone)
+            try:
+                first = await anext(iterator)
+            except SpeechError as error:
+                await iterator.aclose()
+                raise HTTPException(error.status, error.detail) from None
+
+            async def audio_chunks():
+                try:
+                    yield first
+                    async for chunk in iterator:
+                        yield chunk
+                except SpeechError as error:
+                    LOG.warning("Speech stream interrupted: %s", error.detail)
+                    raise RuntimeError("Speech stream interrupted") from None
+                finally:
+                    await iterator.aclose()
+
+            return StreamingResponse(audio_chunks(), media_type="audio/mpeg", headers={"X-Accel-Buffering": "no"})
         try:
             audio = await app.state.speech.synthesize(body.text, body.tone)
         except SpeechError as error:

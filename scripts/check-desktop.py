@@ -77,7 +77,7 @@ def main():
                 wait_js(window, "document.documentElement.dataset.theme === 'light'")
                 window.evaluate_js("document.querySelector('#theme-toggle').click(); true")
                 wait_js(window, "document.documentElement.dataset.theme === 'dark'")
-                window.evaluate_js("state.sound = false; showStart('fundamentals'); document.querySelector('#session-count').value='2'; document.querySelector('#start-form').requestSubmit(); true")
+                window.evaluate_js("state.sound = false; showStart('cv'); document.querySelector('#session-count').value='2'; document.querySelector('#start-form').requestSubmit(); true")
                 wait_js(window, "Boolean(document.querySelector('#answer-input'))")
                 window.evaluate_js("document.querySelector('#answer-input').value='Модель запоминает шум и хуже работает на новых данных. Сравниваем с валидацией.'; document.querySelector('#answer-form').requestSubmit(); true")
                 wait_js(window, "Boolean(document.querySelector('[data-action=next]'))")
@@ -92,7 +92,7 @@ def main():
                     state.config.deepgram = true;
                     const originalFetch = window.fetch;
                     window.fetch = (input, options) => String(input).includes('/api/transcribe')
-                        ? Promise.resolve(new Response(JSON.stringify({text:'Тестовая запись в Windows-приложении'}), {status:200, headers:{'Content-Type':'application/json'}}))
+                        ? (window.recordedForm = options.body, Promise.resolve(new Response(JSON.stringify({text:'Тестовая запись в Windows-приложении', raw_text:'Эээ, тестовая запись в Windows-приложении', cleanup:'applied'}), {status:200, headers:{'Content-Type':'application/json'}})))
                         : originalFetch(input, options);
                     document.querySelector('[data-action=record]').click(); true
                 """)
@@ -100,6 +100,8 @@ def main():
                 time.sleep(1.2)
                 window.evaluate_js("document.querySelector('[data-action=record]').click(); true")
                 wait_js(window, "document.querySelector('#answer-input')?.value === 'Тестовая запись в Windows-приложении'")
+                assert window.evaluate_js("document.querySelector('#transcription-review').textContent.includes('Эээ, тестовая запись')")
+                assert window.evaluate_js("window.recordedForm.get('session_id') === state.session.id && Number(window.recordedForm.get('question_id')) === state.session.question.id")
                 assert window.evaluate_js("state.stream === null")
                 window.evaluate_js("document.querySelector('[data-action=skip]').click(); true")
                 wait_js(window, "Boolean(document.querySelector('[data-action=next]'))")
@@ -133,8 +135,32 @@ def main():
                 assert window.evaluate_js("window.nativeSpokenTones[window.nativeSpokenTones.length-1] === 'friendly'")
                 if options.audio:
                     wait_js(window, "speech.status === 'idle'", timeout=30)
+                    assert window.evaluate_js("MediaSource.isTypeSupported('audio/mpeg')")
+                    # Hold the provider's tail indefinitely: playback must start before EOF.
+                    window.evaluate_js("""
+                        window.streamingSpeechFetch = window.fetch;
+                        window.fetch = (input, options) => String(input).includes('/api/speech')
+                            ? Promise.resolve(new Response(new ReadableStream({
+                                start(controller) {
+                                    const bytes = Uint8Array.from(atob('%s'), c => c.charCodeAt(0));
+                                    controller.enqueue(bytes.slice(0, 24000));
+                                    window.releaseSpeechTail = () => { controller.enqueue(bytes.slice(24000)); controller.close(); };
+                                    window.speechTailReleased = false;
+                                },
+                                cancel() { window.speechStreamCancelled = true; }
+                            }), {headers:{'Content-Type':'audio/mpeg'}}))
+                            : window.streamingSpeechFetch(input, options);
+                        document.querySelector('[data-action=preview-voice]').click(); true
+                    """ % encoded)
+                    wait_js(window, "speech.status === 'playing' && speech.receiving")
+                    assert window.evaluate_js("speech.audio.currentTime >= 0 && !speech.audio.paused && !window.speechTailReleased")
+                    window.evaluate_js("window.speechTailReleased = true; releaseSpeechTail(); true")
+                    wait_js(window, "speech.status === 'idle'", timeout=30)
                     window.evaluate_js("document.querySelector('[data-action=preview-voice]').click(); true")
-                    wait_js(window, "speech.status === 'playing'")
+                    wait_js(window, "speech.status === 'playing' && speech.receiving")
+                    window.evaluate_js("cancelSpeech(); true")
+                    wait_js(window, "window.speechStreamCancelled === true && !speech.receiving")
+                    window.evaluate_js("window.fetch = window.streamingSpeechFetch; true")
                 window.evaluate_js("cancelSpeech(); true")
                 assert window.evaluate_js("speech.audio === null && speech.status === 'idle'")
                 window.evaluate_js("""
@@ -143,10 +169,11 @@ def main():
                     volume.value = '40'; volume.dispatchEvent(new Event('input', {bubbles:true}));
                     const auto = document.querySelector('#auto-speech');
                     auto.checked = true; auto.dispatchEvent(new Event('change', {bubbles:true}));
-                    showStart('fundamentals'); document.querySelector('#start-form').requestSubmit(); true
+                    showStart('dl'); document.querySelector('#session-level').value='Senior'; document.querySelector('#start-form').requestSubmit(); true
                 """)
                 wait_js(window, "Boolean(document.querySelector('#answer-input')) && speech.status === 'playing'")
                 assert window.evaluate_js("speech.audio.volume === 0.4")
+                assert window.evaluate_js("state.session.question.level === 'Senior'")
                 window.evaluate_js("document.querySelector('#answer-input').value='Модель запоминает шум и хуже обобщает новые данные.'; document.querySelector('#answer-form').requestSubmit(); true")
                 wait_js(window, "state.awaitingNext && speech.status === 'playing'")
                 assert window.evaluate_js("window.nativeSpokenTexts[window.nativeSpokenTexts.length-1] === state.session.attempts[state.session.attempts.length-1].feedback")

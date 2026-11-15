@@ -18,8 +18,8 @@ function savedVolume() {
 const voiceTones = new Set(["natural", "calm", "friendly", "excited", "soft", "whisper"]);
 const savedTone = storage.get("ml-voice-tone");
 // A separate preference makes automatic narration explicit and enabled on first use.
-const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
-const speech = { version: 0, controller: null, audio: null, utterance: null, objectUrl: null, status: "idle" };
+const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", libraryLevel: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
+const speech = { version: 0, controller: null, audio: null, reader: null, receiving: false, utterance: null, objectUrl: null, status: "idle" };
 
 function syncVoiceControls() {
   const percent = Math.round(state.volume * 100);
@@ -140,13 +140,13 @@ async function renderHome() {
     <section class="hero"><div class="hero-copy"><span class="hero-pill">${icon("spark")} ТВОЙ ЛИЧНЫЙ ML-ТРЕНЕР</span><h1>Понимать глубже.<br><span>Отвечать увереннее.</span></h1><p>Объясняй идеи своими словами, замечай пробелы<br class="desktop-break"> и закрепляй знания — по одному вопросу за раз.</p><div class="hero-actions"><button class="button primary" data-action="start">Начать тренировку ${icon("arrow")}</button><span>В своём темпе</span></div></div><div class="hero-art" aria-hidden="true"><div class="orbit"></div><div class="orbit second"></div><div class="voice-card"><div class="voice-label"><span class="status-dot"></span> Пространство для твоих мыслей</div><div class="wave">${[9,17,25,15,33,41,27,46,35,21,31,19,11,17,8].map((height) => `<i style="--h:${height}px"></i>`).join("")}</div><div class="voice-caption">От мысли — к пониманию.</div></div><span class="float-tag">${icon("check")} Можно отвечать своими словами</span></div></section>
     <div class="metrics-strip"><div class="metric"><span class="metric-icon">${icon("cards")}</span><div><strong>${state.config.cards}</strong><small>вопросов для старта</small></div></div><div class="metric"><span class="metric-icon">${icon("check")}</span><div><strong>${answered}</strong><small>ответов в истории</small></div></div><div class="metric"><span class="metric-icon">${icon("clock")}</span><div><strong>${completed}</strong><small>тренировок завершено</small></div></div></div>
     <div class="section-heading"><h2>Выбери направление</h2><button class="text-button" data-action="library">Весь банк вопросов ${icon("arrow")}</button></div>
-    <div class="topic-grid">${state.config.topics.map((topic) => `<button class="topic-card" data-action="topic" data-topic="${topic.id}"><span class="topic-symbol">${topic.symbol}</span><h3>${escapeHTML(topic.name)}</h3><p>${escapeHTML(topic.description)}</p><div class="topic-meta"><span>${topic.count} вопроса <span aria-hidden="true">·</span> Базовый уровень</span>${icon("arrow")}</div></button>`).join("")}</div>
+    <div class="topic-grid">${state.config.topics.map((topic) => `<button class="topic-card" data-action="topic" data-topic="${topic.id}" ${topic.count ? "" : 'disabled aria-disabled="true"'}><span class="topic-symbol">${topic.symbol}</span><h3>${escapeHTML(topic.name)}</h3><p>${escapeHTML(topic.description)}</p><div class="topic-meta"><span>${topic.count ? `${topic.count} вопросов · Junior / Middle / Senior` : "Скоро · вопросы ещё не добавлены"}</span>${icon("arrow")}</div></button>`).join("")}</div>
     <div class="below-topics">${icon("spark")}<span>${state.config.ai ? "AI-тренер подключён. Отвечай голосом или текстом." : "Начни с текста. Для содержательной AI-проверки подключи модель."}</span><button class="text-button" data-action="settings">Подключения ${icon("arrow")}</button></div>
   `, "Обзор");
 }
 
 function showStart(topic = "all") {
-  $("#session-topic").innerHTML = `<option value="all">Все темы · ${state.config.cards} вопросов</option>` + state.config.topics.map((item) => `<option value="${item.id}">${escapeHTML(item.name)} · ${item.count} вопроса</option>`).join("");
+  $("#session-topic").innerHTML = `<option value="all">Все темы · ${state.config.cards} вопросов</option>` + state.config.topics.map((item) => `<option value="${item.id}" ${item.count ? "" : "disabled"}>${escapeHTML(item.name)} · ${item.count ? item.count + " вопросов" : "скоро"}</option>`).join("");
   $("#session-topic").value = topic;
   $("#start-dialog").showModal();
 }
@@ -161,7 +161,7 @@ async function startSession(event) {
     if (state.session && !state.session.completed) {
       await api(`/sessions/${state.session.id}/finish`, { method: "POST" });
     }
-    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, count: Number($("#session-count").value) } }));
+    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, level: $("#session-level").value, count: Number($("#session-count").value) } }));
     storage.set("ml-session", state.session.id);
     state.awaitingNext = false;
     $("#start-dialog").close();
@@ -205,7 +205,7 @@ function renderTraining() {
   const nextPanel = reviewing ? `<div class="next-panel"><p>Можно уточнить разбор или обсудить замечания. Переходи дальше, когда будешь готов.</p><button class="button primary" data-action="next" id="next-question">${lastQuestion ? "Итоги тренировки" : "Следующий вопрос"} ${icon("arrow")}</button></div>` : "";
   const composer = `<form class="composer ${reviewing ? "discussion-composer" : ""}" id="answer-form"><label class="sr-only" for="answer-input">${reviewing ? "Сообщение тренеру" : "Твой ответ"}</label><textarea id="answer-input" maxlength="12000" placeholder="${reviewing ? "Не согласен с разбором? Объясни почему или задай уточняющий вопрос…" : "Объясни, как ты это понимаешь. Не обязательно отвечать идеально…"}">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">${reviewing ? "Отправить" : "Проверить ответ"} ${icon("arrow")}</button></div><div class="composer-actions">${reviewing ? '<span class="composer-footnote">Обсуждаем текущий вопрос</span>' : '<button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button>'}<span class="composer-footnote">Ctrl + Enter</span></div><p class="composer-footnote">${reviewing ? (state.config.ai ? "Тренер учитывает твой ответ, первый разбор и обсуждение этой карточки." : "Для полноценного диалога подключи OpenRouter. Сейчас доступен демо-ответ с эталоном.") : (state.config.ai ? "Ответ проверит AI-тренер по критериям вопроса." : "Демо: разбор по ключевым словам. Для оценки смысла подключи LLM.")} ${state.config.deepgram ? "Голосовая запись ограничена 2 минутами." : "Голосовой ввод доступен после подключения Deepgram."}</p></form>`;
   setPage(`
-    <div class="page-title"><div><span class="eyebrow">СПОКОЙНО. В СВОЁМ ТЕМПЕ.</span><h1>Тренировка</h1><p>${escapeHTML(topic)} · Базовый уровень</p></div><button class="button small" data-action="finish">Завершить</button></div>
+    <div class="page-title"><div><span class="eyebrow">СПОКОЙНО. В СВОЁМ ТЕМПЕ.</span><h1>Тренировка</h1><p>${escapeHTML(topic)} · ${escapeHTML(question.level)}</p></div><button class="button small" data-action="finish">Завершить</button></div>
     <div class="training-layout"><section class="chat-panel"><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${reviewing ? "Обсуждаем вопрос" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
     ${nextPanel}${composer}</section>
     <aside class="training-side"><div class="side-card"><h3>Твоя практика</h3><div class="progress-number">${session.answered} <span>/ ${session.total}</span></div><div class="progress-track"><div style="width:${100 * session.answered / session.total}%"></div></div><small>вопросов разобрано</small><div class="session-topic">${escapeHTML(topicName(session.topic))}</div></div><div class="side-card sage"><span class="tiny-spark">✳</span><h3>Говори, как понимаешь</h3><p>Начни с главной идеи. Добавь пример. Если не помнишь термин — попробуй объяснить его своими словами.</p></div><div class="side-card"><h3>${state.config.ai ? "AI-тренер" : "Демо-режим"}</h3><p>${state.config.ai ? "Сверяем смысл с критериями и разбираем упущенные моменты." : "Пока ищем ключевые слова и показываем эталон. Это не оценка твоих знаний."}</p><button class="text-button" data-action="settings">Подключения ${icon("arrow")}</button></div></aside></div>
@@ -276,13 +276,14 @@ function renderResults() {
 async function renderLibrary() {
   setPage(`<div class="page-title"><div><span class="eyebrow">ИДЕИ, К КОТОРЫМ СТОИТ ВЕРНУТЬСЯ</span><h1>Банк вопросов</h1><p>Исследуй темы или найди вопрос для следующей практики.</p></div><button class="button primary small" data-action="start">Тренироваться ${icon("arrow")}</button></div><form id="search-form"><label class="sr-only" for="card-search">Поиск вопросов</label><div class="search-box">${icon("search")}<input id="card-search" value="${escapeHTML(state.query)}" maxlength="500" placeholder="Например: переобучение, precision, регуляризация…" autocomplete="off"></div></form><div class="filter-row">${[{ id: "all", name: "Все темы" }, ...state.config.topics].map((topic) => `<button class="chip ${state.libraryTopic === topic.id ? "active" : ""}" data-action="filter" data-topic="${topic.id}">${escapeHTML(topic.name)}</button>`).join("")}</div><p class="search-note">${state.config.semantic ? "Семантический поиск по смыслу" : "Векторный поиск по сходству слов · локальный режим"} · ${escapeHTML(state.config.database)}</p><div class="library-grid" id="library-results"><span class="spinner"></span></div>`, "Банк вопросов");
   $("#search-form").addEventListener("submit", (event) => { event.preventDefault(); searchCards(); });
+  $("#search-form").insertAdjacentHTML("afterend", `<div class="level-filter"><label for="library-level">Сложность</label><select id="library-level"><option value="all" ${state.libraryLevel === "all" ? "selected" : ""}>Все уровни</option>${["Junior", "Middle", "Senior"].map((level) => `<option value="${level}" ${state.libraryLevel === level ? "selected" : ""}>${level}</option>`).join("")}</select></div>`);
   await searchCards();
 }
 
 async function searchCards() {
   const version = ++state.searchVersion;
   state.query = $("#card-search")?.value ?? state.query;
-  const result = await api(`/cards?q=${encodeURIComponent(state.query)}&topic=${encodeURIComponent(state.libraryTopic)}`);
+  const result = await api(`/cards?q=${encodeURIComponent(state.query)}&topic=${encodeURIComponent(state.libraryTopic)}&level=${encodeURIComponent(state.libraryLevel)}`);
   if (version !== state.searchVersion || state.page !== "library") return;
   $("#library-results").innerHTML = result.cards.length ? result.cards.map((card) => `<article class="question-card"><span class="eyebrow">${escapeHTML(card.topic)}</span><h3>${escapeHTML(card.title)}</h3><p>${escapeHTML(card.question)}</p><div class="question-card-footer"><span class="tag">${escapeHTML(card.level)}</span><span class="tag">${escapeHTML(card.tags[0])}</span><button class="text-button" data-action="topic" data-topic="${card.topic_id}">Практиковать тему ${icon("arrow")}</button></div></article>`).join("") : `<div class="empty-state"><h3>Пока нет вопросов</h3><p>Попробуй выбрать другую тему.</p></div>`;
 }
@@ -326,13 +327,80 @@ function cancelSpeech() {
   speech.version += 1;
   speech.controller?.abort();
   speech.controller = null;
-  if (speech.audio) { speech.audio.onended = null; speech.audio.onerror = null; speech.audio.pause(); speech.audio.removeAttribute("src"); speech.audio.load(); }
+  speech.reader?.cancel().catch(() => {});
+  speech.reader = null;
+  speech.receiving = false;
+  if (speech.audio) { speech.audio.onplaying = null; speech.audio.onended = null; speech.audio.onerror = null; speech.audio.pause(); speech.audio.removeAttribute("src"); speech.audio.load(); }
   speech.audio = null;
   speech.utterance = null;
   if (speech.objectUrl) URL.revokeObjectURL(speech.objectUrl);
   speech.objectUrl = null;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
   speechStatus("idle");
+}
+
+function waitForAudioEvent(target, name, signal, action = () => {}) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      target.removeEventListener(name, done);
+      target.removeEventListener("error", failed);
+      signal.removeEventListener("abort", aborted);
+    };
+    const done = () => { cleanup(); resolve(); };
+    const failed = () => { cleanup(); reject(new Error("Не удалось воспроизвести поток озвучки. Попробуй повторить.")); };
+    const aborted = () => { cleanup(); reject(new DOMException("Speech cancelled", "AbortError")); };
+    if (signal.aborted) { aborted(); return; }
+    target.addEventListener(name, done, { once: true });
+    target.addEventListener("error", failed, { once: true });
+    signal.addEventListener("abort", aborted, { once: true });
+    try { action(); } catch (error) { cleanup(); reject(error); }
+  });
+}
+
+function speechAudio(source, version) {
+  speech.objectUrl = URL.createObjectURL(source);
+  const audio = new Audio(speech.objectUrl);
+  audio.volume = state.volume;
+  speech.audio = audio;
+  audio.onplaying = () => { if (speech.version === version) speechStatus("playing"); };
+  audio.onended = () => { if (speech.version === version) cancelSpeech(); };
+  audio.onerror = () => { if (speech.version === version) { cancelSpeech(); toast("Не удалось воспроизвести запись. Можно повторить озвучку рядом с сообщением."); } };
+  return audio;
+}
+
+async function playSpeechStream(response, version, signal) {
+  const source = new MediaSource();
+  const opened = waitForAudioEvent(source, "sourceopen", signal);
+  const audio = speechAudio(source, version);
+  await opened;
+  const buffer = source.addSourceBuffer("audio/mpeg");
+  const reader = response.body.getReader();
+  speech.reader = reader;
+  speech.receiving = true;
+  let started = false;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (signal.aborted) throw new DOMException("Speech cancelled", "AbortError");
+      if (done) break;
+      if (!value.length) continue;
+      await waitForAudioEvent(buffer, "updateend", signal, () => buffer.appendBuffer(value));
+      if (!started) {
+        started = true;
+        // Keep receiving data while play() waits for enough MP3 frames to start.
+        audio.play().catch((error) => {
+          if (speech.version !== version) return;
+          cancelSpeech();
+          toast(error.name === "NotAllowedError" ? "Нажми кнопку динамика рядом с сообщением, чтобы включить воспроизведение." : "Не удалось запустить озвучку. Попробуй повторить.");
+        });
+      }
+    }
+    if (!started) throw new Error("Сервис озвучки вернул пустую запись.");
+    if (source.readyState === "open") source.endOfStream();
+  } finally {
+    reader.releaseLock();
+    if (speech.version === version) { speech.reader = null; speech.receiving = false; }
+  }
 }
 
 async function speak(text, { force = false } = {}) {
@@ -349,21 +417,22 @@ async function speak(text, { force = false } = {}) {
       const response = await fetch("/api/speech", {
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json", "X-App-Token": state.config.token },
-        body: JSON.stringify({ text, tone: state.tone }),
+        body: JSON.stringify({ text, tone: state.tone, stream: true }),
       });
       if (!response.ok) {
         const result = await response.json();
         throw new Error(typeof result.detail === "string" ? result.detail : "Не удалось озвучить сообщение.");
       }
+      if (speech.version !== version) return;
+      if (response.body && response.headers.get("Content-Type")?.split(";")[0] === "audio/mpeg"
+          && window.MediaSource?.isTypeSupported("audio/mpeg")) {
+        await playSpeechStream(response, version, controller.signal);
+        return;
+      }
       const blob = await response.blob();
       if (speech.version !== version) return;
       if (!blob.size || !blob.type.startsWith("audio/")) throw new Error("Сервис озвучки вернул некорректную запись.");
-      speech.objectUrl = URL.createObjectURL(blob);
-      const audio = new Audio(speech.objectUrl);
-      audio.volume = state.volume;
-      speech.audio = audio;
-      audio.onended = () => { if (speech.version === version) cancelSpeech(); };
-      audio.onerror = () => { if (speech.version === version) { cancelSpeech(); toast("Не удалось воспроизвести запись. Можно повторить озвучку рядом с сообщением."); } };
+      const audio = speechAudio(blob, version);
       await audio.play();
       if (speech.version === version) speechStatus("playing");
     } catch (error) {
@@ -428,18 +497,27 @@ async function record() {
       state.recorder = null;
       state.busy = true;
       button.disabled = true;
-      button.innerHTML = `${icon("mic")} Распознаю…`;
+      const cleanupReady = state.config.transcription?.ready ?? state.config.ai;
+      button.innerHTML = `${icon("mic")} ${cleanupReady ? "Распознаю и очищаю…" : "Распознаю…"}`;
       button.classList.remove("recording");
+      if ($("#activity-label")) $("#activity-label").textContent = cleanupReady ? "Распознаю и очищаю…" : "Распознаю…";
       if ($("#submit-answer")) $("#submit-answer").disabled = true;
       const form = new FormData();
       form.append("audio", new Blob(chunks, { type: recorder.mimeType }), "answer.webm");
+      form.append("session_id", sessionId);
+      form.append("question_id", String(questionId));
       try {
         const result = await api("/transcribe", { method: "POST", body: form });
         if (state.page !== "training" || state.session?.id !== sessionId || state.session?.question?.id !== questionId) return;
         const field = $("#answer-input");
         field.value = [field.value.trim(), result.text].filter(Boolean).join(" ").slice(0, 12000);
         storage.set(draftKey(), field.value);
+        $("#transcription-review")?.remove();
+        if (result.cleanup === "applied" && result.raw_text !== result.text) {
+          field.insertAdjacentHTML("afterend", `<details class="transcription-review" id="transcription-review"><summary>Исходная расшифровка последней записи</summary><p>${escapeHTML(result.raw_text)}</p></details>`);
+        }
         if (!result.text.trim()) toast("Речь не обнаружена. Попробуй ещё раз или напиши ответ.");
+        else if (result.cleanup === "unavailable") toast("Речь распознана, но очистка недоступна. В поле исходный текст — проверь его перед отправкой.");
         else toast(state.session.reviewing ? "Сообщение распознано. Проверь текст и нажми «Отправить»." : "Ответ распознан. Проверь текст и нажми «Проверить ответ».");
       } catch (error) { toast(error.message); }
       finally {
@@ -514,7 +592,10 @@ document.addEventListener("click", async (event) => {
 let searchTimer;
 document.addEventListener("input", (event) => {
   if (event.target.id === "answer-input") storage.set(draftKey(), event.target.value);
-  if (event.target.id === "card-search") { clearTimeout(searchTimer); searchTimer = setTimeout(() => searchCards().catch((error) => toast(error.message)), 350); }
+  if (event.target.id === "card-search") { state.query = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(() => searchCards().catch((error) => toast(error.message)), 350); }
+});
+document.addEventListener("change", (event) => {
+  if (event.target.id === "library-level") { state.libraryLevel = event.target.value; searchCards().catch((error) => toast(error.message)); }
 });
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && event.target.id === "answer-input") submitAnswer(event);
