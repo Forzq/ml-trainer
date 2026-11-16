@@ -118,7 +118,7 @@ def test_embedding_batches_preserve_order_across_requests(tmp_path):
         assert [call.kwargs["json"]["input"] for call in post.call_args_list] == [["first", "second"], ["third"]]
 
 
-def test_ai_response_validation_and_no_silent_demo_fallback(tmp_path):
+def test_ai_response_validation_and_no_silent_demo_fallback(tmp_path, caplog):
     settings = settings_at(tmp_path)
     settings.model = "test-model"
     settings.openrouter_key = "secret-not-for-browser"
@@ -129,8 +129,13 @@ def test_ai_response_validation_and_no_silent_demo_fallback(tmp_path):
         endpoint = f"/api/sessions/{state['id']}/answer"
         payload = {"question_id": state["question"]["id"], "answer": "мой ответ"}
         with patch("app.trainer.httpx.Client") as provider:
+            provider.return_value.__enter__.return_value.post.return_value.status_code = 200
             provider.return_value.__enter__.return_value.post.return_value.json.return_value = {
                 "choices": [{"message": {"content": '{"score":999,"feedback":"bad","covered":[],"missing":[]}'}}]
             }
             assert client.post(endpoint, json=payload, headers=headers).status_code == 502
         assert client.get(f"/api/sessions/{state['id']}").json()["answered"] == 0
+        assert "Model response rejected" in caplog.text
+        assert "Model call failed: operation=evaluate" in caplog.text
+        assert "secret-not-for-browser" not in caplog.text
+        assert "мой ответ" not in caplog.text

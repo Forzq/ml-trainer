@@ -17,17 +17,20 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.config import ROOT, Settings
 from app.store import Store
 from app.speech import Speech, SpeechError
-from app.trainer import discuss, evaluate
+from app.trainer import discuss, evaluate, log_model_failure
 from app.transcription import clean_transcript
 from app.recognition import RecognitionError, recognize_audio
 from app.catalog import LEVELS, TOPICS, canonical_topic
 from app.selection import select_questions
+from app.avatar import avatar_router
+from app.rubric import prepare_card
 
 LOG = logging.getLogger("ml-trainer")
 
 
 def public_card(card):
-    return {key: card[key] for key in ("id", "topic_id", "topic", "title", "question", "level", "tags")}
+    return {**{key: card[key] for key in ("id", "topic_id", "topic", "title", "question", "level", "tags")},
+            "followups": card.get("followups", []), "rubric_version": card.get("rubric_version")}
 
 
 def create_app(settings: Settings | None = None):
@@ -43,6 +46,7 @@ def create_app(settings: Settings | None = None):
         app.state.store.close()
 
     app = FastAPI(title="ML Trainer", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.include_router(avatar_router(settings.data_dir))
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
 
     @app.middleware("http")
@@ -108,7 +112,7 @@ def create_app(settings: Settings | None = None):
     def session_state(session_id):
         store = app.state.store
         with store.connect() as db:
-            row = db.execute("SELECT id, topic, question_ids, completed_at, current_index FROM sessions WHERE id=?", (session_id,)).fetchone()
+            row = db.execute("SELECT id, topic, question_ids, completed_at, current_index,profile,question_snapshots FROM sessions WHERE id=?", (session_id,)).fetchone()
             if not row:
                 raise HTTPException(404, "Тренировка не найдена.")
             attempts = db.execute(
@@ -123,21 +127,38 @@ def create_app(settings: Settings | None = None):
         done = {a[0] for a in attempts}
         index = min(row[4], max(0, len(ids) - 1))
         active_id = ids[index] if ids else None
-        complete = bool(row[3]) or active_id not in store.by_id
+        if row[6] is None:
+            # Imports or older writers can still create legacy rows after startup.
+            saved = {str(identifier): prepare_card(store.legacy_cards[identifier]) for identifier in ids if identifier in store.legacy_cards}
+            with store.connect() as db:
+                db.execute("UPDATE sessions SET question_snapshots=? WHERE id=? AND question_snapshots IS NULL",
+                           (json.dumps(saved, ensure_ascii=False), session_id))
+            snapshots = {int(key): value for key, value in saved.items()}
+        else:
+            snapshots = {int(key): value for key, value in json.loads(row[6]).items()}
+        profile = json.loads(row[5] or "{}") or {"candidate_level": "Middle", "specialization": next((t["name"] for t in TOPICS if t["id"] == canonical_topic(row[1])), "Общий ML / Data Science")}
+        complete = bool(row[3]) or active_id not in snapshots
         return {
             "id": row[0], "topic": canonical_topic(row[1]), "total": len(ids), "answered": len(attempts),
             "completed": complete, "current_index": index,
             "reviewing": not complete and active_id in done,
-            "question": public_card(store.by_id[active_id]) if not complete else None,
-            "attempts": [{**json.loads(a[2]), "question": public_card(store.by_id[a[0]]),
+            "profile": profile,
+            "question": public_card(snapshots[active_id]) if not complete else None,
+            "attempts": [{**json.loads(a[2]), "question": public_card(snapshots[a[0]]),
                           "answer": a[1], "score": a[3], "mode": a[4],
                           "discussion": [{"id": t[0], "message": t[2], "reply": t[3], "mode": t[4], "created_at": t[5]}
-                                         for t in turns if t[1] == a[0]]} for a in attempts if a[0] in store.by_id],
+                                         for t in turns if t[1] == a[0]]} for a in attempts if a[0] in snapshots],
         }
+
+    def session_card(session_id, question_id):
+        with app.state.store.connect() as db:
+            raw = db.execute("SELECT question_snapshots FROM sessions WHERE id=?", (session_id,)).fetchone()[0]
+        return json.loads(raw)[str(question_id)]
 
     class NewSession(BaseModel):
         topic: str = "all"
         level: Literal["all", "Junior", "Middle", "Senior"] = "all"
+        candidate_level: Literal["Junior", "Middle", "Senior"] = "Middle"
         count: int = Field(default=4, ge=1, le=20)
 
     @app.post("/api/sessions")
@@ -153,8 +174,10 @@ def create_app(settings: Settings | None = None):
             counts = dict(db.execute("SELECT question_id, COUNT(*) FROM attempts GROUP BY question_id"))
             selected = select_questions(selected, counts, body.count)
             session_id = str(uuid.uuid4())
-            db.execute("INSERT INTO sessions(id,topic,question_ids) VALUES(?,?,?)",
-                       (session_id, body.topic, json.dumps([c["id"] for c in selected])))
+            profile = {"candidate_level": body.candidate_level, "specialization": next((t["name"] for t in TOPICS if t["id"] == body.topic), "Общий ML / Data Science")}
+            snapshots = {str(card["id"]): card for card in selected}
+            db.execute("INSERT INTO sessions(id,topic,question_ids,profile,question_snapshots) VALUES(?,?,?,?,?)",
+                       (session_id, body.topic, json.dumps([c["id"] for c in selected]), json.dumps(profile, ensure_ascii=False), json.dumps(snapshots, ensure_ascii=False)))
         return session_state(session_id)
 
     @app.get("/api/sessions/{session_id}")
@@ -179,14 +202,15 @@ def create_app(settings: Settings | None = None):
             text = body.answer.strip()
             if not body.skip and not text:
                 raise HTTPException(422, "Напиши или запиши ответ.")
-            card = app.state.store.by_id[body.question_id]
+            card = session_card(session_id, body.question_id)
             if body.skip:
                 result = {"score": 0, "feedback": "Ориентир для ответа: " + card["reference"],
                           "covered": [], "missing": [c["label"] for c in card["criteria"]], "mode": "skipped"}
             else:
                 try:
-                    result = evaluate(card, text, settings)
-                except (httpx.HTTPError, ValueError, KeyError, IndexError):
+                    result = evaluate(card, text, settings, profile=state["profile"])
+                except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+                    log_model_failure("evaluate", settings.model, body.question_id, error)
                     raise HTTPException(502, "Модель не смогла проверить ответ. Проверь ключ, баланс и название модели. Ответ сохранён в поле ввода; можно повторить запрос.")
             with app.state.store.connect() as db:
                 db.execute("INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES(?,?,?,?,?,?)",
@@ -210,8 +234,9 @@ def create_app(settings: Settings | None = None):
                 raise HTTPException(422, "Напиши или запиши уточнение.")
             attempt = next(item for item in state["attempts"] if item["question"]["id"] == body.question_id)
             try:
-                result = discuss(app.state.store.by_id[body.question_id], attempt, text, settings)
-            except (httpx.HTTPError, ValueError, KeyError, IndexError):
+                result = discuss(session_card(session_id, body.question_id), attempt, text, settings, profile=state["profile"])
+            except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+                log_model_failure("discuss", settings.model, body.question_id, error)
                 raise HTTPException(502, "Тренер не смог ответить. Сообщение осталось в поле ввода; можно отправить ещё раз.")
             with app.state.store.connect() as db:
                 db.execute("INSERT INTO discussions(session_id,question_id,message,reply,mode) VALUES(?,?,?,?,?)",
@@ -281,7 +306,7 @@ def create_app(settings: Settings | None = None):
 
     class SpeechRequest(BaseModel):
         text: str = Field(min_length=1, max_length=6000)
-        tone: Literal["natural", "calm", "friendly", "excited", "soft", "whisper"] = "natural"
+        tone: Literal["natural", "calm", "very_calm_slow", "friendly", "excited", "soft", "whisper"] = "natural"
         stream: bool = False
 
     @app.post("/api/speech")

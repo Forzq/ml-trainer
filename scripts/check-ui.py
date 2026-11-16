@@ -232,12 +232,12 @@ def main():
                 assert page.evaluate("speech.audio === null && speech.objectUrl === null && speech.status === 'idle'")
                 page.get_by_label("Настройки голоса", exact=True).click()
                 before_tone = len(spoken_texts)
-                page.locator("#voice-tone").select_option("calm")
+                page.locator("#voice-tone").select_option("very_calm_slow")
                 page.screenshot(path=str(ROOT / "logs/preview-voice-controls.png"), full_page=True)
                 assert len(spoken_texts) == before_tone, "Selecting a tone must not send a synthesis request"
                 page.get_by_role("button", name="Послушать интонацию", exact=True).click()
                 page.wait_for_function("speech.status === 'playing'")
-                assert spoken_tones[-1] == "calm"
+                assert spoken_tones[-1] == "very_calm_slow"
                 page.locator("#speech-indicator").click()
                 # A delayed response that ignores AbortSignal must not start audio after cancellation.
                 page.evaluate("""() => {
@@ -266,7 +266,7 @@ def main():
                 feedback = page.evaluate("state.session.attempts[state.session.attempts.length-1].feedback")
                 assert len(spoken_texts) == requests_before_answer + 1
                 assert spoken_texts[-1] == feedback
-                assert spoken_tones[-1] == "calm"
+                assert spoken_tones[-1] == "very_calm_slow"
                 assert page.evaluate("speech.audio.volume === 0.15")
                 page.locator("#answer-input").fill("Не согласен с замечанием. Объясни, что именно я упустил.")
                 page.get_by_role("button", name="Отправить", exact=True).click()
@@ -295,7 +295,7 @@ def main():
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
                 page.reload()
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
-                assert page.evaluate("state.volume === 0.15 && state.sound === false && state.tone === 'calm'")
+                assert page.evaluate("state.volume === 0.15 && state.sound === false && state.tone === 'very_calm_slow'")
                 page.get_by_role("button", name="На главную", exact=True).click()
                 page.set_viewport_size({"width": 390, "height": 844})
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()

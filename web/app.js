@@ -16,11 +16,106 @@ function savedVolume() {
   return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) / 100 : 0.75;
 }
 
-const voiceTones = new Set(["natural", "calm", "friendly", "excited", "soft", "whisper"]);
+const voiceTones = new Set(["natural", "calm", "very_calm_slow", "friendly", "excited", "soft", "whisper"]);
 const savedTone = storage.get("ml-voice-tone");
 // A separate preference makes automatic narration explicit and enabled on first use.
 const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", libraryLevel: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", historyPage: 1, historyVersion: 0, recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
-const speech = { version: 0, controller: null, audio: null, reader: null, receiving: false, utterance: null, objectUrl: null, status: "idle" };
+const speech = { version: 0, controller: null, audio: null, reader: null, receiving: false, utterance: null, objectUrl: null, status: "idle", completion: null, resolve: null };
+const trainerAvatar = new TrainerAvatar({ api, storage, toast });
+const live = new LiveTraining({
+  session: () => state.session,
+  busy: () => state.busy,
+  update: () => updateLiveUI(),
+  cancelSpeech: () => cancelSpeech(),
+  checkReady: () => {
+    if (!speechRecognitionReady()) throw new Error("Для Live Training подключи Deepgram или Whisper в .env.");
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error("Запись недоступна. Обнови WebView2 Runtime.");
+    if (state.volume === 0) throw new Error("Для Live Training увеличь громкость голоса выше 0%.");
+    if (state.config.tts?.provider === "fish" ? !state.config.tts.ready : !("speechSynthesis" in window)) {
+      throw new Error("Для Live Training настрой озвучку в «Подключениях».");
+    }
+  },
+  say: async (text) => {
+    const version = speech.version;
+    const request = speak(text, { force: true });
+    if (version === speech.version) return false;
+    const completion = speech.completion;
+    await request;
+    return completion ? await completion : false;
+  },
+  transcribe: async (blob) => {
+    const form = new FormData();
+    form.append("audio", blob, "answer.webm");
+    form.append("session_id", state.session.id);
+    form.append("question_id", String(state.session.question.id));
+    state.busy = true;
+    updateLiveUI();
+    try { return await api("/transcribe", { method: "POST", body: form }); }
+    finally { state.busy = false; updateLiveUI(); }
+  },
+  acceptTranscript: (result, session) => {
+    if (state.session?.id !== session.id || state.session.question?.id !== session.question.id || state.session.reviewing !== session.reviewing) return result.text;
+    const key = draftKey();
+    const field = $("#answer-input");
+    const text = [(field?.value || storage.get(key) || "").trim(), result.text].filter(Boolean).join(" ").slice(0, 12000);
+    storage.set(key, text);
+    if (field) { field.value = text; showTranscriptOriginal(result, field); }
+    return text;
+  },
+  submit: async (text, skip) => {
+    if ($("#answer-input") && !skip) $("#answer-input").value = text;
+    return await submitAnswer(null, skip, { silent: true });
+  },
+  next: () => nextQuestion({ silent: true }),
+  finish: () => finishSession(),
+});
+
+function updateLiveUI() {
+  syncTrainerAvatar();
+  const panel = $("#live-panel");
+  if (!panel) return;
+  const key = `${live.enabled}:${live.paused}`;
+  if (panel.dataset.mode !== key) {
+    panel.dataset.mode = key;
+    panel.innerHTML = live.enabled
+      ? `<div class="live-heading"><span class="live-badge">● LIVE TRAINING</span><div class="live-actions"><button class="button small" data-action="${live.paused ? "live-resume" : "live-pause"}">${live.paused ? "Продолжить" : "Пауза"}</button><button class="text-button" data-action="live-manual">Обычный режим</button><button class="text-button" data-action="live-finish">Завершить</button></div></div><p class="live-status" role="status" aria-live="polite"></p><div class="live-meter" aria-hidden="true"><i></i></div><small>Команды: «повтори вопрос», «следующий вопрос», «пауза», «заверши тренировку». После разбора — 6 секунд на уточнение.</small>`
+      : `<div class="live-heading"><div><strong>Live Training</strong><p>Вопросы, ответы и переходы голосом — без кнопок.</p></div><button class="button small" data-action="live-start">Включить Live</button></div>`;
+  }
+  if (live.enabled) {
+    const status = panel.querySelector(".live-status");
+    if (status.textContent !== live.message) status.textContent = live.message;
+    panel.querySelector(".live-meter i").style.width = `${Math.round(live.level * 100)}%`;
+    panel.dataset.phase = live.phase;
+  }
+  const resume = panel.querySelector('[data-action="live-resume"]');
+  if (resume) resume.disabled = state.busy;
+  const start = panel.querySelector('[data-action="live-start"]');
+  if (start) start.disabled = state.busy;
+  const locked = live.running || state.busy;
+  for (const selector of ["#record-button", "#submit-answer", "#next-question", '[data-action="skip"]']) {
+    if ($(selector)) $(selector).disabled = locked;
+  }
+  if ($("#answer-input")) $("#answer-input").readOnly = live.running;
+}
+
+function showTranscriptOriginal(result, field) {
+  $("#transcription-review")?.remove();
+  if (result.cleanup === "applied" && result.raw_text !== result.text) {
+    field.insertAdjacentHTML("afterend", `<details class="transcription-review" id="transcription-review"><summary>Исходная расшифровка последней записи</summary><p>${escapeHTML(result.raw_text)}</p></details>`);
+  }
+}
+
+function syncTrainerAvatar() {
+  if (state.recorder?.state === "recording" || (live.running && ["listening", "followup"].includes(live.phase))) {
+    trainerAvatar.update("listening", "Слушаю тебя");
+  } else if ((state.busy && speech.status !== "playing") || speech.status === "loading") {
+    trainerAvatar.update("thinking", "Думаю над ответом…");
+  } else {
+    const attempt = state.session?.attempts.find((item) => item.question.id === state.session?.question?.id);
+    const reaction = attempt ? (attempt.mode === "ai" && attempt.score >= 70 ? "positive" : "supportive") : "neutral";
+    trainerAvatar.update(reaction, speech.status === "playing" ? "Говорю…" : attempt ? "Можно обсудить ответ" : "Готов к тренировке");
+  }
+}
 
 function syncVoiceControls() {
   const percent = Math.round(state.volume * 100);
@@ -47,6 +142,7 @@ function setVolume(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return;
   state.volume = Math.max(0, Math.min(100, value)) / 100;
+  if (state.volume === 0 && live.running) live.pause("Громкость 0%. Увеличь громкость и нажми «Продолжить».");
   storage.set("ml-voice-volume", String(Math.round(state.volume * 100)));
   if (speech.audio) speech.audio.volume = state.volume;
   if (speech.utterance) speech.utterance.volume = state.volume;
@@ -55,6 +151,7 @@ function setVolume(percent) {
 
 function setAutoSpeech(enabled) {
   state.sound = Boolean(enabled);
+  if (!enabled && live.running) live.pause("Автоозвучка выключена. Live Training на паузе.");
   storage.set("ml-auto-speech", state.sound ? "on" : "off");
   if (!state.sound) cancelSpeech();
   syncVoiceControls();
@@ -144,28 +241,43 @@ async function renderHome() {
 }
 
 function showStart(topic = "all") {
+  if (live.running) live.pause("Выбор новой тренировки открыт. Текущий вопрос сохранён.");
   $("#session-topic").innerHTML = `<option value="all">Все темы · ${state.config.cards} вопросов</option>` + state.config.topics.map((item) => `<option value="${item.id}" ${item.count ? "" : "disabled"}>${escapeHTML(item.name)} · ${item.count ? item.count + " вопросов" : "скоро"}</option>`).join("");
   $("#session-topic").value = topic;
+  const candidateLevel = storage.get("ml-candidate-level");
+  $("#candidate-level").value = ["Junior", "Middle", "Senior"].includes(candidateLevel) ? candidateLevel : "Middle";
   $("#start-dialog").showModal();
 }
 
 async function startSession(event) {
   event.preventDefault();
+  live.stop();
   cancelSpeech();
   discardRecording();
   const button = $("#start-form button[type=submit]");
   button.disabled = true;
   try {
+    const liveMode = $("#session-mode").value === "live";
+    live.timing.silenceMs = Number($("#live-silence").value);
+    live.threshold = Number($("#live-sensitivity").value);
+    if (liveMode) {
+      await live.prepare();
+      if (!$("#start-dialog").open) { live.stop(); return; }
+    }
     if (state.session && !state.session.completed) {
       await api(`/sessions/${state.session.id}/finish`, { method: "POST" });
     }
-    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, level: $("#session-level").value, count: Number($("#session-count").value) } }));
+    const candidateLevel = $("#candidate-level").value;
+    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, level: $("#session-level").value, candidate_level: candidateLevel, count: Number($("#session-count").value) } }));
+    storage.set("ml-candidate-level", candidateLevel);
     storage.set("ml-session", state.session.id);
     state.awaitingNext = false;
     $("#start-dialog").close();
-    if (location.hash === "#training") { state.page = "training"; renderTraining(); speak(state.session.question.question); }
-    else { state.speakNext = true; location.hash = "training"; }
-  } catch (error) { toast(error.message); }
+    if (location.hash === "#training") {
+      state.page = "training"; renderTraining();
+      if (liveMode) await live.start({ prepared: true }); else speak(state.session.question.question);
+    } else { state.speakNext = !liveMode; state.liveNext = liveMode; location.hash = "training"; }
+  } catch (error) { live.stop(); toast(error.name === "NotAllowedError" ? "Разреши доступ к микрофону, чтобы начать Live Training." : error.message); }
   finally { button.disabled = false; }
 }
 
@@ -184,6 +296,18 @@ function discussionHTML(attempt) {
   return (attempt.discussion || []).map((turn) => messageHTML("user", turn.message) + messageHTML("assistant", turn.reply, "", true)).join("");
 }
 
+function rubricHTML(attempt) {
+  if (!attempt.criterion_results?.length) {
+    return `<div class="feedback-tags">${(attempt.covered || []).map((label) => `<span>✓ ${escapeHTML(label)}</span>`).join("")}${(attempt.missing || []).map((label) => `<span class="missing">${escapeHTML(label)}</span>`).join("")}</div>`;
+  }
+  const names = { correct: "Верно", partial: "Частично верно", incorrect: "Неверно", not_answered: "Не отвечено" };
+  return `<details class="rubric-breakdown"><summary>Разбор по критериям · ${attempt.score}/100</summary><p>Баллы учитывают верные части ответа. Дополнительные вопросы не влияют на оценку.</p>${attempt.criterion_results.map((row) => `<div class="rubric-row"><div><span class="rubric-status ${row.status}">${names[row.status] || "Проверено"}</span><strong>${row.earned_points}/${row.max_points}</strong></div><p>${escapeHTML(row.label)}</p>${row.evidence ? `<blockquote>${escapeHTML(row.evidence)}</blockquote>` : ""}</div>`).join("")}</details>`;
+}
+
+function followupsHTML(question) {
+  return question.followups?.length ? `<details class="optional-followups"><summary>Углубление · не влияет на балл</summary><p>Эти вопросы можно обсудить с тренером после основного ответа.</p><ol>${question.followups.map((text) => `<li>${escapeHTML(text)}</li>`).join("")}</ol></details>` : "";
+}
+
 function renderTraining() {
   const session = state.session;
   if (!session) { showStart(); location.hash = "home"; return; }
@@ -194,7 +318,7 @@ function renderTraining() {
   let messages = messageHTML("assistant", question.question, "", true);
   if (attempt) {
     messages += messageHTML("user", attempt.mode === "skipped" ? "Пропускаю этот вопрос." : attempt.answer);
-    messages += messageHTML("assistant", attempt.feedback, `<div class="feedback-tags">${attempt.covered.map((label) => `<span>✓ ${escapeHTML(label)}</span>`).join("")}${attempt.missing.map((label) => `<span class="missing">${escapeHTML(label)}</span>`).join("")}</div>`, true);
+    messages += messageHTML("assistant", attempt.feedback, rubricHTML(attempt), true);
     if (attempt.discussion?.length) messages += `<div class="conversation-divider">Обсуждение вопроса</div>` + discussionHTML(attempt);
   }
   const topic = question?.topic || topicName(session.topic);
@@ -204,17 +328,19 @@ function renderTraining() {
   const composer = `<form class="composer ${reviewing ? "discussion-composer" : ""}" id="answer-form"><label class="sr-only" for="answer-input">${reviewing ? "Сообщение тренеру" : "Твой ответ"}</label><textarea id="answer-input" maxlength="12000" placeholder="${reviewing ? "Не согласен с разбором? Объясни почему или задай уточняющий вопрос…" : "Объясни, как ты это понимаешь. Не обязательно отвечать идеально…"}">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">${reviewing ? "Отправить" : "Проверить ответ"} ${icon("arrow")}</button></div><div class="composer-actions">${reviewing ? '<span class="composer-footnote">Обсуждаем текущий вопрос</span>' : '<button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button>'}<span class="composer-footnote">Ctrl + Enter</span></div><p class="composer-footnote">${reviewing ? (state.config.ai ? "Тренер учитывает твой ответ, первый разбор и обсуждение этой карточки." : "Для полноценного диалога подключи OpenRouter. Сейчас доступен демо-ответ с эталоном.") : (state.config.ai ? "Ответ проверит AI-тренер по критериям вопроса." : "Демо: разбор по ключевым словам. Для оценки смысла подключи LLM.")} ${speechRecognitionReady() ? "Голосовая запись ограничена 2 минутами." : "Для голосового ввода подключи Deepgram или OpenAI Whisper."}</p></form>`;
   setPage(`
     <div class="page-title"><div><span class="eyebrow">СПОКОЙНО. В СВОЁМ ТЕМПЕ.</span><h1>Тренировка</h1><p>${escapeHTML(topic)} · ${escapeHTML(question.level)}</p></div><button class="button small" data-action="finish">Завершить</button></div>
-    <div class="training-layout"><section class="chat-panel"><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${reviewing ? "Обсуждаем вопрос" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
-    ${nextPanel}${composer}</section>
-    <aside class="training-side"><div class="side-card"><h3>Твоя практика</h3><div class="progress-number">${session.answered} <span>/ ${session.total}</span></div><div class="progress-track"><div style="width:${100 * session.answered / session.total}%"></div></div><small>вопросов разобрано</small><div class="session-topic">${escapeHTML(topicName(session.topic))}</div></div><div class="side-card sage"><span class="tiny-spark">✳</span><h3>Говори, как понимаешь</h3><p>Начни с главной идеи. Добавь пример. Если не помнишь термин — попробуй объяснить его своими словами.</p></div><div class="side-card"><h3>${state.config.ai ? "AI-тренер" : "Демо-режим"}</h3><p>${state.config.ai ? "Сверяем смысл с критериями и разбираем упущенные моменты." : "Пока ищем ключевые слова и показываем эталон. Это не оценка твоих знаний."}</p><button class="text-button" data-action="settings">Подключения ${icon("arrow")}</button></div></aside></div>
+    <div class="training-layout"><section class="chat-panel"><div id="live-panel" class="live-panel"></div><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${reviewing ? "Обсуждаем вопрос" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
+    ${followupsHTML(question)}${nextPanel}${composer}</section>
+    <aside class="training-side"><div id="trainer-avatar"></div><div class="side-card"><h3>Твоя практика</h3><div class="progress-number">${session.answered} <span>/ ${session.total}</span></div><div class="progress-track"><div style="width:${100 * session.answered / session.total}%"></div></div><small>вопросов разобрано</small><div class="session-topic">${escapeHTML(topicName(session.topic))}</div></div><div class="side-card sage"><span class="tiny-spark">✳</span><h3>Говори, как понимаешь</h3><p>Начни с главной идеи. Добавь пример. Если не помнишь термин — попробуй объяснить его своими словами.</p></div><div class="side-card"><h3>${state.config.ai ? "AI-тренер" : "Демо-режим"}</h3><p>${state.config.ai ? "Сверяем смысл с критериями и разбираем упущенные моменты." : "Пока ищем ключевые слова и показываем эталон. Это не оценка твоих знаний."}</p><button class="text-button" data-action="settings">Подключения ${icon("arrow")}</button></div></aside></div>
   `, "Тренировка");
   const chat = $("#chat-messages");
   chat.scrollTo({ top: chat.scrollHeight, behavior: "instant" });
   $("#answer-form").addEventListener("submit", submitAnswer);
+  updateLiveUI();
 }
 
-async function submitAnswer(event, skip = false) {
+async function submitAnswer(event, skip = false, { silent = false } = {}) {
   event?.preventDefault();
+  if (live.running && !silent) return;
   if (state.busy || state.recorder?.state === "recording") return;
   const answer = $("#answer-input")?.value || "";
   const reviewing = state.session.reviewing;
@@ -233,8 +359,9 @@ async function submitAnswer(event, skip = false) {
     storage.remove(key);
     if (state.page === "training") {
       renderTraining();
-      speak(reviewing ? result.discussion.reply : result.evaluation.feedback);
+      if (!silent) speak(reviewing ? result.discussion.reply : result.evaluation.feedback);
     }
+    return result;
   } catch (error) {
     toast(error.message);
     if ($("#submit-answer")) $("#submit-answer").disabled = false;
@@ -242,10 +369,11 @@ async function submitAnswer(event, skip = false) {
     if ($("#answer-input")) $("#answer-input").disabled = false;
     if ($("#next-question")) $("#next-question").disabled = false;
     if ($("#activity-label")) $("#activity-label").textContent = "Можно попробовать ещё раз";
-  } finally { state.busy = false; }
+    if (silent) throw error;
+  } finally { state.busy = false; updateLiveUI(); }
 }
 
-async function nextQuestion() {
+async function nextQuestion({ silent = false } = {}) {
   if (state.busy) return;
   state.busy = true;
   discardRecording();
@@ -255,12 +383,14 @@ async function nextQuestion() {
   try {
     applySession(await api(`/sessions/${state.session.id}/next`, { method: "POST", body: { question_id: state.session.question.id } }));
     renderTraining();
-    if (state.session.question) speak(state.session.question.question);
+    if (state.session.question && !silent) speak(state.session.question.question);
+    return state.session;
   } catch (error) {
     toast(error.message);
     if ($("#next-question")) $("#next-question").disabled = false;
     if ($("#answer-input")) $("#answer-input").disabled = false;
-  } finally { state.busy = false; }
+    if (silent) throw error;
+  } finally { state.busy = false; updateLiveUI(); }
 }
 
 function renderResults() {
@@ -268,7 +398,7 @@ function renderResults() {
   const assessed = session.attempts.filter((attempt) => attempt.mode === "ai");
   const skipped = session.attempts.filter((attempt) => attempt.mode === "skipped").length;
   const average = assessed.length ? Math.round(assessed.reduce((sum, attempt) => sum + attempt.score, 0) / assessed.length) : null;
-  setPage(`<div class="results"><div class="result-hero"><div class="result-symbol">✳</div><span class="eyebrow">ЕЩЁ ОДИН ШАГ ВПЕРЁД</span><h1>Практика завершена</h1><p>Теперь ты чуть лучше знаешь, на что обратить внимание.</p><div class="result-numbers"><div><strong>${session.answered}</strong><small>вопросов разобрано</small></div><div><strong>${average === null ? "—" : average + "%"}</strong><small>${average === null ? "AI-оценки пока нет" : "средняя AI-оценка"}</small></div><div><strong>${skipped}</strong><small>пропущено</small></div></div><p>${assessed.length ? "Оценка модели — ориентир для повторения. Главная ценность — в разборе." : "Демо-проверка не оценивает понимание. Посмотри объяснения и повтори сложные вопросы."}</p></div><div class="section-heading"><h2>Что разобрали</h2></div>${session.attempts.length ? session.attempts.map((attempt) => `<details class="result-row"><summary>${escapeHTML(attempt.question.title)}<span class="tag">${attempt.mode === "ai" ? attempt.score + "%" : attempt.mode === "skipped" ? "Пропущен" : "Демо"}</span></summary><p><strong>Твой ответ:</strong> ${escapeHTML(attempt.answer || "Вопрос пропущен")}</p><p>${escapeHTML(attempt.feedback)}</p>${attempt.discussion?.length ? `<div class="history-discussion">${discussionHTML(attempt)}</div>` : ""}</details>`).join("") : `<p class="helper">В этот раз ответов не было. Можно начать снова, когда будет удобно.</p>`}<div class="result-actions"><button class="button primary" data-action="start">Ещё одна тренировка ${icon("arrow")}</button><button class="button" data-action="home">На главную</button></div></div>`, "Итоги");
+  setPage(`<div class="results"><div class="result-hero"><div class="result-symbol">✳</div><span class="eyebrow">ЕЩЁ ОДИН ШАГ ВПЕРЁД</span><h1>Практика завершена</h1><p>Теперь ты чуть лучше знаешь, на что обратить внимание.</p><div class="result-numbers"><div><strong>${session.answered}</strong><small>вопросов разобрано</small></div><div><strong>${average === null ? "—" : average + "%"}</strong><small>${average === null ? "AI-оценки пока нет" : "средняя AI-оценка"}</small></div><div><strong>${skipped}</strong><small>пропущено</small></div></div><p>${assessed.length ? "Оценка модели — ориентир для повторения. Главная ценность — в разборе." : "Демо-проверка не оценивает понимание. Посмотри объяснения и повтори сложные вопросы."}</p></div><div class="section-heading"><h2>Что разобрали</h2></div>${session.attempts.length ? session.attempts.map((attempt) => `<details class="result-row"><summary>${escapeHTML(attempt.question.title)}<span class="tag">${attempt.mode === "ai" ? attempt.score + "%" : attempt.mode === "skipped" ? "Пропущен" : "Демо"}</span></summary><p><strong>Твой ответ:</strong> ${escapeHTML(attempt.answer || "Вопрос пропущен")}</p><p>${escapeHTML(attempt.feedback)}</p>${rubricHTML(attempt)}${attempt.discussion?.length ? `<div class="history-discussion">${discussionHTML(attempt)}</div>` : ""}</details>`).join("") : `<p class="helper">В этот раз ответов не было. Можно начать снова, когда будет удобно.</p>`}<div class="result-actions"><button class="button primary" data-action="start">Ещё одна тренировка ${icon("arrow")}</button><button class="button" data-action="home">На главную</button></div></div>`, "Итоги");
 }
 
 async function renderLibrary() {
@@ -302,6 +432,7 @@ async function renderHistory(page = state.historyPage) {
 }
 
 function showSettings() {
+  if (live.running) live.pause("Настройки открыты. Нажми «Продолжить», чтобы вернуться к Live Training.");
   const config = state.config;
   const fish = config.tts?.provider === "fish";
   const speechReady = fish ? config.tts.ready : "speechSynthesis" in window;
@@ -318,6 +449,7 @@ function showSettings() {
 
 function speechStatus(status) {
   speech.status = status;
+  syncTrainerAvatar();
   const indicator = $("#speech-indicator");
   indicator.hidden = status === "idle";
   indicator.innerHTML = `${status === "loading" ? '<span class="spinner"></span>' : icon("sound")}<span>${status === "loading" ? "Готовлю голос…" : "Озвучиваю"}</span>${icon("close")}`;
@@ -331,7 +463,10 @@ function speechStatus(status) {
   tonePreview.dataset.action = status === "idle" ? "preview-tone" : "stop-preview";
 }
 
-function cancelSpeech() {
+function cancelSpeech(completed = false) {
+  trainerAvatar.stopAudio();
+  speech.resolve?.(completed === true);
+  speech.resolve = null;
   speech.version += 1;
   speech.controller?.abort();
   speech.controller = null;
@@ -370,8 +505,9 @@ function speechAudio(source, version) {
   const audio = new Audio(speech.objectUrl);
   audio.volume = state.volume;
   speech.audio = audio;
+  trainerAvatar.attachAudio(audio);
   audio.onplaying = () => { if (speech.version === version) speechStatus("playing"); };
-  audio.onended = () => { if (speech.version === version) cancelSpeech(); };
+  audio.onended = () => { if (speech.version === version) cancelSpeech(true); };
   audio.onerror = () => { if (speech.version === version) { cancelSpeech(); toast("Не удалось воспроизвести запись. Можно повторить озвучку рядом с сообщением."); } };
   return audio;
 }
@@ -415,8 +551,9 @@ async function speak(text, { force = false } = {}) {
   if ((!state.sound && !force) || state.recorder?.state === "recording") return;
   if (state.volume === 0) { if (force) toast("Громкость голоса — 0%. Увеличь её в настройках голоса справа вверху."); return; }
   cancelSpeech();
+  speech.completion = new Promise((resolve) => { speech.resolve = resolve; });
   if (state.config?.tts?.provider === "fish") {
-    if (!state.config.tts.ready) { toast("Для голоса Fish Audio добавь FISH_AUDIO_API_KEY в .env и перезапусти приложение."); return; }
+    if (!state.config.tts.ready) { cancelSpeech(); toast("Для голоса Fish Audio добавь FISH_AUDIO_API_KEY в .env и перезапусти приложение."); return; }
     const version = speech.version;
     const controller = new AbortController();
     speech.controller = controller;
@@ -450,7 +587,7 @@ async function speak(text, { force = false } = {}) {
     }
     return;
   }
-  if (!("speechSynthesis" in window)) { toast("Системная озвучка недоступна."); return; }
+  if (!("speechSynthesis" in window)) { cancelSpeech(); toast("Системная озвучка недоступна."); return; }
   const version = speech.version;
   const utterance = new SpeechSynthesisUtterance(text);
   speech.utterance = utterance;
@@ -460,8 +597,8 @@ async function speak(text, { force = false } = {}) {
   const voice = speechSynthesis.getVoices().find((item) => item.lang.toLowerCase().startsWith("ru"));
   if (voice) utterance.voice = voice;
   utterance.onstart = () => { if (speech.version === version) speechStatus("playing"); };
-  utterance.onend = () => { if (speech.version === version) cancelSpeech(); };
-  utterance.onerror = (event) => { if (speech.version === version && !["canceled", "interrupted"].includes(event.error)) { cancelSpeech(); toast("Озвучка недоступна. Тот же текст есть в чате."); } };
+  utterance.onend = () => { if (speech.version === version) cancelSpeech(true); };
+  utterance.onerror = (event) => { if (speech.version === version) { cancelSpeech(); if (!["canceled", "interrupted"].includes(event.error)) toast("Озвучка недоступна. Тот же текст есть в чате."); } };
   speechSynthesis.speak(utterance);
 }
 
@@ -481,6 +618,7 @@ function discardRecording() {
 }
 
 async function record() {
+  if (live.running) return;
   if (state.busy) return;
   if (state.recorder?.state === "recording") { state.recorder.stop(); return; }
   if (!speechRecognitionReady()) { toast("Для голосового ввода добавь DEEPGRAM_API_KEY или OPENAI_API_KEY в .env; инструкция — в «Подключениях»."); return; }
@@ -504,6 +642,7 @@ async function record() {
       releaseMicrophone();
       state.recorder = null;
       state.busy = true;
+      syncTrainerAvatar();
       button.disabled = true;
       const cleanupReady = state.config.transcription?.ready ?? state.config.ai;
       button.innerHTML = `${icon("mic")} ${cleanupReady ? "Распознаю и очищаю…" : "Распознаю…"}`;
@@ -521,22 +660,21 @@ async function record() {
         const field = $("#answer-input");
         field.value = [field.value.trim(), result.text].filter(Boolean).join(" ").slice(0, 12000);
         storage.set(draftKey(), field.value);
-        $("#transcription-review")?.remove();
-        if (result.cleanup === "applied" && result.raw_text !== result.text) {
-          field.insertAdjacentHTML("afterend", `<details class="transcription-review" id="transcription-review"><summary>Исходная расшифровка последней записи</summary><p>${escapeHTML(result.raw_text)}</p></details>`);
-        }
+        showTranscriptOriginal(result, field);
         if (!result.text.trim()) toast("Речь не обнаружена. Попробуй ещё раз или напиши ответ.");
         else if (result.cleanup === "unavailable") toast(providerNote + "Речь распознана, но очистка недоступна. В поле исходный текст — проверь его перед отправкой.");
         else toast(providerNote + (state.session.reviewing ? "Сообщение распознано. Проверь текст и нажми «Отправить»." : "Ответ распознан. Проверь текст и нажми «Проверить ответ»."));
       } catch (error) { toast(error.message); }
       finally {
         state.busy = false;
+        syncTrainerAvatar();
         if ($("#record-button")) { $("#record-button").disabled = false; $("#record-button").innerHTML = `${icon("mic")} Ответить голосом`; }
         if ($("#submit-answer")) $("#submit-answer").disabled = false;
         if ($("#activity-label")) $("#activity-label").textContent = "Твой ход";
       }
     };
     recorder.start(1000);
+    syncTrainerAvatar();
     button.classList.add("recording");
     button.innerHTML = `${icon("stop")} Закончить запись`;
     $("#submit-answer").disabled = true;
@@ -549,6 +687,7 @@ async function record() {
 }
 
 async function finishSession() {
+  live.stop();
   if (state.busy) { toast("Дождись завершения проверки."); return; }
   discardRecording();
   cancelSpeech();
@@ -559,6 +698,7 @@ async function finishSession() {
 async function route() {
   if (!state.config) return;
   if (state.busy) { toast("Дождись завершения запроса."); history.replaceState(null, "", `#${state.page}`); return; }
+  if (live.enabled) live.stop();
   cancelSpeech();
   discardRecording();
   const page = location.hash.slice(1) || "home";
@@ -567,7 +707,11 @@ async function route() {
     if (state.page === "home") await renderHome();
     else if (state.page === "library") await renderLibrary();
     else if (state.page === "history") await renderHistory();
-    else { renderTraining(); if (state.speakNext && state.session?.question) { state.speakNext = false; speak(state.session.question.question); } }
+    else {
+      renderTraining();
+      if (state.liveNext && state.session?.question) { state.liveNext = false; await live.start({ prepared: true }); }
+      else if (state.speakNext && state.session?.question) { state.speakNext = false; speak(state.session.question.question); }
+    }
   } catch (error) { setPage(`<div class="error-state">${escapeHTML(error.message)}<br><button class="text-button" data-action="reload">Попробовать снова ${icon("arrow")}</button></div>`, "Ошибка"); }
 }
 
@@ -575,8 +719,26 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const action = target.dataset.action;
+  if (action === "avatar-settings") {
+    if (live.running) live.pause("Настройка аватара. Нажми «Продолжить», когда будешь готов.");
+    trainerAvatar.show();
+    return;
+  }
+  if (action.startsWith("live-")) {
+    try {
+      if (action === "live-pause") live.pause();
+      else if (action === "live-manual") live.stop();
+      else if (action === "live-finish") { const task = live.task; live.stop(); await task; await finishSession(); }
+      else if (action === "live-start" || action === "live-resume") {
+        if (state.recorder?.state === "recording") { toast("Сначала закончи текущую запись."); return; }
+        await live.start();
+      }
+    } catch (error) { toast(error.message); }
+    return;
+  }
   if (state.busy && !["settings", "close-settings", "speak", "toggle-sound", "preview-voice", "preview-tone", "stop-preview"].includes(action)) { toast("Дождись завершения запроса."); return; }
   try {
+    if (live.running && ["speak", "preview-voice", "preview-tone"].includes(action)) live.pause("Live Training на паузе для повторного прослушивания.");
     if (action === "start") showStart();
     else if (action === "topic") showStart(target.dataset.topic);
     else if (["home", "library", "history"].includes(action)) location.hash = action;
@@ -605,13 +767,14 @@ document.addEventListener("input", (event) => {
   if (event.target.id === "card-search") { state.query = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(() => searchCards().catch((error) => toast(error.message)), 350); }
 });
 document.addEventListener("change", (event) => {
+  if (event.target.id === "session-mode") $("#live-options").hidden = event.target.value !== "live";
   if (event.target.id === "library-level") { state.libraryLevel = event.target.value; searchCards().catch((error) => toast(error.message)); }
 });
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && event.target.id === "answer-input") submitAnswer(event);
 });
 window.addEventListener("hashchange", route);
-window.addEventListener("pagehide", () => { discardRecording(); cancelSpeech(); });
+window.addEventListener("pagehide", () => { live.stop(); discardRecording(); cancelSpeech(); trainerAvatar.context?.close().catch(() => {}); });
 $("#settings-button").addEventListener("click", showSettings);
 $("#speech-indicator").addEventListener("click", cancelSpeech);
 $("#close-settings").addEventListener("click", () => $("#settings-dialog").close());
@@ -622,6 +785,7 @@ document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener(
 async function boot() {
   try {
     state.config = await api("/config");
+    await trainerAvatar.load().catch(() => toast("Не удалось загрузить картинки аватара. Тренировка доступна."));
     $("#mode-badge").textContent = state.config.ai ? "AI-тренер подключён" : "Демо-режим";
     $("#nav-count").textContent = state.config.cards;
     const sessionId = storage.get("ml-session");

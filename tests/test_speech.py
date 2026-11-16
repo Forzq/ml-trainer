@@ -124,7 +124,7 @@ def test_tone_changes_directives_and_keeps_separate_cache_entries(tmp_path):
     def respond(request):
         sent.append(json.loads(request.content)["text"])
         return httpx.Response(200, content=AUDIO, headers={"Content-Type": "audio/mpeg"})
-    expected = {"natural": "Привет", "calm": "[calm] Привет", "friendly": "[friendly] Привет",
+    expected = {"natural": "Привет", "calm": "[calm] Привет", "very_calm_slow": "[very calm and slowly] Привет", "friendly": "[friendly] Привет",
                 "excited": "[excited] Привет", "soft": "[soft tone] Привет", "whisper": "[whispering] Привет"}
     with TestClient(create_app(settings_at(tmp_path))) as client, provider(respond):
         for tone, expected_text in expected.items():

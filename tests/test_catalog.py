@@ -19,7 +19,7 @@ def test_bank_has_500_unique_complete_questions_and_preserves_original_ids():
     for topic in (item["id"] for item in TOPICS):
         selected = [card for card in cards if card["topic_id"] == topic]
         assert Counter(card["level"] for card in selected) == {"Junior": 40, "Middle": 40, "Senior": 20}
-    assert all(len(card["criteria"]) == 3 for card in cards)
+    assert all(2 <= len(card["criteria"]) <= 6 and sum(c["max_points"] for c in card["criteria"]) == 100 for card in cards)
     assert [card["title"] for card in cards[:6]] == ["Переобучение", "Разделение данных", "Precision и recall",
                                                     "Дисбаланс классов", "Линейная регрессия", "Регуляризация"]
     assert len({card["question"].casefold() for card in cards}) == 500

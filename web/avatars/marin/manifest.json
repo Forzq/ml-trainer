@@ -1,0 +1,30 @@
+{
+  "id": "marin",
+  "name": "Ментор по ML",
+  "width": 1199,
+  "height": 1312,
+  "files": {
+    "base": "base.png",
+    "mouth": "mouth-open.png",
+    "listening": "listening.png",
+    "thinking": "thinking.png",
+    "positive": "positive.png",
+    "supportive": "supportive.png",
+    "blink": "blink.png"
+  },
+  "eyes": {
+    "target": [396, 286, 399, 164],
+    "regions": [[0, 0, 170, 164], [231, 0, 168, 164]],
+    "source": {
+      "listening": [396, 286, 399, 164],
+      "thinking": [396, 286, 399, 164],
+      "positive": [396, 286, 399, 164],
+      "supportive": [329, 320, 419, 166],
+      "blink": [396, 286, 399, 164]
+    }
+  },
+  "mouth": {
+    "source": [504, 555, 100, 75],
+    "target": [536, 521, 120, 90]
+  }
+}

@@ -2,9 +2,10 @@
 import json
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.config import ROOT
+from app.rubric import prepare_card
 
 LEVELS = ("Junior", "Middle", "Senior")
 TOPICS = [
@@ -22,8 +23,10 @@ def canonical_topic(topic: str) -> str:
 
 
 class Criterion(BaseModel):
+    id: str = Field(min_length=1, max_length=80)
     label: str = Field(min_length=3)
     keywords: list[str] = Field(min_length=1)
+    max_points: int = Field(strict=True, ge=4, le=100)
 
 
 class Question(BaseModel):
@@ -36,11 +39,21 @@ class Question(BaseModel):
     tags: list[str] = Field(min_length=1)
     reference: str = Field(min_length=60, max_length=6000)
     criteria: list[Criterion] = Field(min_length=2, max_length=6)
+    followups: list[str] = Field(default_factory=list, max_length=8)
+    rubric_version: str
+
+    @model_validator(mode="after")
+    def valid_rubric(self):
+        if sum(c.max_points for c in self.criteria) != 100 or len({c.id for c in self.criteria}) != len(self.criteria):
+            raise ValueError("Rubric needs unique criterion IDs and weights totalling 100")
+        if any(not text.strip() for text in self.followups):
+            raise ValueError("Empty followup")
+        return self
 
 
 def load_cards(path=None) -> list[dict]:
     raw = json.loads((path or ROOT / "content/questions.json").read_text(encoding="utf-8"))
-    cards = [Question.model_validate(card).model_dump() for card in raw]
+    cards = [Question.model_validate(prepare_card(card)).model_dump() for card in raw]
     if not cards:
         raise ValueError("The question bank is empty")
     topics = {topic["id"]: topic["name"] for topic in TOPICS}

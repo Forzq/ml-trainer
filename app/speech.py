@@ -12,6 +12,7 @@ from app.config import Settings
 TONE_CUES = {
     "natural": "",
     "calm": "[calm]",
+    "very_calm_slow": "[very calm and slowly]",
     "friendly": "[friendly]",
     "excited": "[excited]",
     "soft": "[soft tone]",

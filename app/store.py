@@ -7,9 +7,10 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient, models
 
-from app.config import Settings
+from app.config import ROOT, Settings
 from app.embeddings import Embeddings
 from app.catalog import canonical_topic, load_cards
+from app.rubric import prepare_card
 
 
 class Store:
@@ -53,6 +54,20 @@ class Store:
                     done = {row[0] for row in db.execute("SELECT question_id FROM attempts WHERE session_id=?", (session_id,))}
                     index = next((i for i, question_id in enumerate(ids) if question_id not in done), max(0, len(ids) - 1))
                     db.execute("UPDATE sessions SET current_index=? WHERE id=?", (index, session_id))
+            if "profile" not in columns:
+                db.execute("ALTER TABLE sessions ADD COLUMN profile TEXT NOT NULL DEFAULT '{}'")
+            if "question_snapshots" not in columns:
+                db.execute("ALTER TABLE sessions ADD COLUMN question_snapshots TEXT")
+            # Preserve the pre-edit conditions/rubrics for historical sessions before seeding new cards.
+            archive_path = ROOT / "content/question-versions-v1.json"
+            legacy = dict(self.by_id)
+            if archive_path.is_file():
+                legacy.update({int(key): value for key, value in json.loads(archive_path.read_text(encoding="utf-8")).items()})
+            self.legacy_cards = legacy
+            for session_id, raw_ids in db.execute("SELECT id,question_ids FROM sessions WHERE question_snapshots IS NULL").fetchall():
+                snapshots = {str(identifier): prepare_card(legacy[identifier]) for identifier in json.loads(raw_ids) if identifier in legacy}
+                db.execute("UPDATE sessions SET question_snapshots=? WHERE id=?",
+                           (json.dumps(snapshots, ensure_ascii=False), session_id))
         self.collection = "ml_questions_" + hashlib.sha256(self.embeddings.name.encode()).hexdigest()[:12]
         self.seed()
 
