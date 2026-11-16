@@ -8,6 +8,7 @@ import tempfile
 import threading
 import time
 import wave
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -295,9 +296,64 @@ def main():
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile layout overflows"
                 page.screenshot(path=str(ROOT / "logs/preview-mobile.png"), full_page=True)
+                # More than one history page must not truncate the home counters.
+                before_stats = httpx.get(url + "/api/stats").json()
+                with server.config.app.state.store.connect() as db:
+                    oldest_session = db.execute("SELECT id FROM sessions ORDER BY created_at, rowid LIMIT 1").fetchone()[0]
+                    feedback = json.dumps({"feedback": "Проверочный разбор", "covered": [], "missing": []})
+                    for index in range(32):
+                        session_id = f"pagination-{index}"
+                        db.execute("INSERT INTO sessions(id,topic,question_ids,completed_at) VALUES(?,?,?,CURRENT_TIMESTAMP)",
+                                   (session_id, "classical_ml", "[1]"))
+                        db.execute("INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES(?,?,?,?,?,?)",
+                                   (session_id, 1, "Проверочный ответ", feedback, 50, "demo"))
+                page.reload()
+                expect(page.locator(".metric strong").nth(1)).to_have_text(str(before_stats["answered"] + 32))
+                expect(page.locator(".metric strong").nth(2)).to_have_text(str(before_stats["completed"] + 32))
+                page.get_by_role("link", name="История", exact=True).click()
+                expect(page.locator(".history-item")).to_have_count(30)
+                expect(page.locator(".history-page-info")).to_contain_text("Страница 1 из 2")
+                expect(page.get_by_role("button", name="Предыдущая страница истории")).to_be_disabled()
+                page.get_by_role("button", name="Следующая страница истории").click()
+                expect(page.locator(".history-item")).to_have_count(before_stats["sessions"] + 2)
+                expect(page.locator(".history-page-info")).to_contain_text("Страница 2 из 2")
+                expect(page.get_by_role("button", name="Следующая страница истории")).to_be_disabled()
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "History pagination overflows"
+                page.screenshot(path=str(ROOT / "logs/preview-history-mobile.png"), full_page=True)
+                page.locator(f'[data-action="open-session"][data-id="{oldest_session}"]').click()
+                expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
+                expect(page.locator(".history-discussion")).to_have_count(2)
+                page.get_by_role("link", name="История", exact=True).click()
+                expect(page.locator(".history-page-info")).to_contain_text("Страница 2 из 2")
+                page.get_by_role("button", name="Предыдущая страница истории").click()
+                expect(page.locator(".history-item")).to_have_count(30)
+                expect(page.locator(".history-page-info")).to_contain_text("Страница 1 из 2")
+                page.set_viewport_size({"width": 1360, "height": 1000})
+                page.screenshot(path=str(ROOT / "logs/preview-history.png"), full_page=True)
+                page.get_by_role("link", name="Обзор", exact=True).click()
+                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
+                page.get_by_role("button", name="Начать тренировку", exact=True).click()
+                page.locator("#session-topic").select_option("all")
+                page.locator("#session-level").select_option("Junior")
+                page.locator("#session-count").select_option("20")
+                page.get_by_role("button", name="Начать тренировку", exact=True).last.click()
+                page.wait_for_function("state.session?.total === 20 && state.session?.topic === 'all'")
+                session_id = page.evaluate("state.session.id")
+                store = server.config.app.state.store
+                with store.connect() as db:
+                    ids = json.loads(db.execute("SELECT question_ids FROM sessions WHERE id=?", (session_id,)).fetchone()[0])
+                cards = [store.by_id[question_id] for question_id in ids]
+                assert Counter(card["topic_id"] for card in cards) == {topic["id"]: 4 for topic in page.evaluate("state.config.topics")}
+                assert all(card["level"] == "Junior" for card in cards)
+                first_topic = page.evaluate("state.session.question.topic_id")
+                page.get_by_role("button", name="Пока не знаю — показать объяснение").click()
+                expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_visible()
+                page.get_by_role("button", name="Следующий вопрос", exact=True).click()
+                page.wait_for_function("state.session.current_index === 1")
+                assert page.evaluate("state.session.question.topic_id") != first_topic
                 assert errors == [], errors
                 browser.close()
-                print(json.dumps({"result": "passed", "checks": ["dark default", "theme switching and persistence", "home", "settings", "topic session", "draft restore", "demo evaluation", "skip", "results", "history", "vector search", "microphone recording and release", "Fish playback and stop", "late TTS response cancellation", "automatic feedback narration", "manual replay while auto off", "live volume without new request", "zero volume", "voice preferences persistence", "mobile layout"], "javascript_errors": errors}, ensure_ascii=False))
+                print(json.dumps({"result": "passed", "checks": ["dark default", "theme switching and persistence", "home", "settings", "topic session", "draft restore", "demo evaluation", "skip", "results", "history", "vector search", "microphone recording and release", "Fish playback and stop", "late TTS response cancellation", "automatic feedback narration", "manual replay while auto off", "live volume without new request", "zero volume", "voice preferences persistence", "mobile layout", "global counters beyond 30 sessions", "history pagination and old session replay", "balanced all-topic session"], "javascript_errors": errors}, ensure_ascii=False))
         finally:
             server.should_exit = True
             thread.join(timeout=10)

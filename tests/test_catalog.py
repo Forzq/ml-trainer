@@ -112,3 +112,58 @@ def test_expansion_only_embeds_new_text_and_payload_edits_preserve_vectors(tmp_p
             assert store.vectors.retrieve(store.collection, ids=[1], with_vectors=True)[0].vector == pytest.approx(vector, rel=1e-6, abs=1e-8)
         finally:
             store.close()
+
+
+def test_all_topics_sessions_balance_topics_and_keep_level_filter(tmp_path):
+    with TestClient(create_app(settings_at(tmp_path))) as client:
+        headers = authenticated(client)
+        # Even a heavily practiced topic must still be represented in a mixed session.
+        with client.app.state.store.connect() as db:
+            db.execute("INSERT INTO sessions(id,topic,question_ids) VALUES('old','classical_ml','[1]')")
+            db.executemany(
+                "INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES('old',?,'','{}',0,'skipped')",
+                [(card["id"],) for card in client.app.state.store.cards if card["topic_id"] == "classical_ml"],
+            )
+        for level in ("all", "Junior", "Middle", "Senior"):
+            for count in (2, 4, 5, 7, 20):
+                response = client.post("/api/sessions", headers=headers, json={"topic": "all", "level": level, "count": count})
+                assert response.status_code == 200
+                state = response.json()
+                with client.app.state.store.connect() as db:
+                    ids = json.loads(db.execute("SELECT question_ids FROM sessions WHERE id=?", (state["id"],)).fetchone()[0])
+                cards = [client.app.state.store.by_id[question_id] for question_id in ids]
+                assert len(ids) == len(set(ids)) == count
+                assert level == "all" or all(card["level"] == level for card in cards)
+                counts = Counter(card["topic_id"] for card in cards)
+                sizes = [counts[topic["id"]] for topic in TOPICS]
+                assert max(sizes) - min(sizes) <= 1
+                assert state["question"]["topic_id"] != "classical_ml"
+
+
+def test_short_mixed_sessions_rotate_after_practice_and_restart(tmp_path):
+    settings = settings_at(tmp_path)
+    practiced = Counter()
+    question_ids = []
+
+    def complete_short_session(client):
+        headers = authenticated(client)
+        state = client.post("/api/sessions", headers=headers, json={"topic": "all", "count": 2}).json()
+        for _ in range(2):
+            practiced[state["question"]["topic_id"]] += 1
+            question_ids.append(state["question"]["id"])
+            endpoint = f"/api/sessions/{state['id']}"
+            client.post(endpoint + "/answer", headers=headers,
+                        json={"question_id": state["question"]["id"], "skip": True}).raise_for_status()
+            response = client.post(endpoint + "/next", headers=headers,
+                                   json={"question_id": state["question"]["id"]})
+            response.raise_for_status()
+            state = response.json()
+        assert state["completed"]
+
+    with TestClient(create_app(settings)) as client:
+        complete_short_session(client)
+    with TestClient(create_app(settings)) as client:
+        for _ in range(4):
+            complete_short_session(client)
+    assert practiced == {topic["id"]: 2 for topic in TOPICS}
+    assert len(question_ids) == len(set(question_ids)) == 10

@@ -8,7 +8,7 @@ from typing import Literal
 
 import httpx
 import uvicorn
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -20,6 +20,7 @@ from app.speech import Speech, SpeechError
 from app.trainer import discuss, evaluate
 from app.transcription import clean_transcript
 from app.catalog import LEVELS, TOPICS, canonical_topic
+from app.selection import select_questions
 
 LOG = logging.getLogger("ml-trainer")
 
@@ -94,9 +95,13 @@ def create_app(settings: Settings | None = None):
             raise HTTPException(502, "Сервис векторизации недоступен. Проверь настройки embeddings.")
         return {"cards": [dict(public_card(c), **({"similarity": c["similarity"]} if "similarity" in c else {})) for c in rows]}
 
+    @app.get("/api/stats")
+    def stats():
+        return app.state.store.stats()
+
     @app.get("/api/history")
-    def history():
-        return {"sessions": app.state.store.history()}
+    def history(page: int = Query(default=1, ge=1), page_size: int = Query(default=30, ge=1, le=100)):
+        return app.state.store.history(page, page_size)
 
     def session_state(session_id):
         store = app.state.store
@@ -141,13 +146,13 @@ def create_app(settings: Settings | None = None):
         selected = store.search(topic=body.topic, level=body.level)
         if not selected:
             raise HTTPException(422, "Для выбранной темы и сложности пока нет вопросов.")
-        # Prefer less-practiced cards; deterministic order makes the starter easy to inspect.
+        # Balance eligible topics and prefer less-practiced cards within each topic.
         with store.connect() as db:
             counts = dict(db.execute("SELECT question_id, COUNT(*) FROM attempts GROUP BY question_id"))
-            selected.sort(key=lambda card: (counts.get(card["id"], 0), card["id"]))
+            selected = select_questions(selected, counts, body.count)
             session_id = str(uuid.uuid4())
             db.execute("INSERT INTO sessions(id,topic,question_ids) VALUES(?,?,?)",
-                       (session_id, body.topic, json.dumps([c["id"] for c in selected[:body.count]])))
+                       (session_id, body.topic, json.dumps([c["id"] for c in selected])))
         return session_state(session_id)
 
     @app.get("/api/sessions/{session_id}")

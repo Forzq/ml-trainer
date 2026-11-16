@@ -125,15 +125,28 @@ class Store:
                     break
             return sorted([point.payload for point in found], key=lambda card: card["id"])
 
-    def history(self):
+    def stats(self):
+        with self.connect() as db:
+            sessions, completed, answered = db.execute("""
+                SELECT COUNT(*), COUNT(completed_at), (SELECT COUNT(*) FROM attempts)
+                FROM sessions
+            """).fetchone()
+        return {"sessions": sessions, "completed": completed, "answered": answered}
+
+    def history(self, page: int = 1, page_size: int = 30):
         with self.connect() as db:
             db.row_factory = sqlite3.Row
-            return [dict(row, topic=canonical_topic(row["topic"])) for row in db.execute("""
+            total = db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+            total_pages = max(1, (total + page_size - 1) // page_size)
+            page = min(page, total_pages)
+            sessions = [dict(row, topic=canonical_topic(row["topic"])) for row in db.execute("""
                 SELECT s.id, s.topic, s.created_at, s.completed_at,
                     COUNT(a.id) AS answered, ROUND(AVG(a.score)) AS score
                 FROM sessions s LEFT JOIN attempts a ON a.session_id=s.id
-                GROUP BY s.id ORDER BY s.created_at DESC, s.rowid DESC LIMIT 30
-            """)]
+                GROUP BY s.id ORDER BY s.created_at DESC, s.rowid DESC LIMIT ? OFFSET ?
+            """, (page_size, (page - 1) * page_size))]
+        return {"sessions": sessions, "page": page, "page_size": page_size,
+                "total": total, "total_pages": total_pages}
 
     def close(self):
         self.vectors.close()

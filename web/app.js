@@ -18,7 +18,7 @@ function savedVolume() {
 const voiceTones = new Set(["natural", "calm", "friendly", "excited", "soft", "whisper"]);
 const savedTone = storage.get("ml-voice-tone");
 // A separate preference makes automatic narration explicit and enabled on first use.
-const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", libraryLevel: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
+const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", libraryLevel: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", historyPage: 1, historyVersion: 0, recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
 const speech = { version: 0, controller: null, audio: null, reader: null, receiving: false, utterance: null, objectUrl: null, status: "idle" };
 
 function syncVoiceControls() {
@@ -127,11 +127,8 @@ function setPage(html, label) {
 }
 
 async function renderHome() {
-  const history = await api("/history");
+  const { answered, completed } = await api("/stats");
   if (state.page !== "home") return;
-  const sessions = history.sessions;
-  const answered = sessions.reduce((sum, session) => sum + session.answered, 0);
-  const completed = sessions.filter((session) => session.completed_at).length;
   const date = new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
   const resume = state.session && !state.session.completed;
   setPage(`
@@ -288,10 +285,19 @@ async function searchCards() {
   $("#library-results").innerHTML = result.cards.length ? result.cards.map((card) => `<article class="question-card"><span class="eyebrow">${escapeHTML(card.topic)}</span><h3>${escapeHTML(card.title)}</h3><p>${escapeHTML(card.question)}</p><div class="question-card-footer"><span class="tag">${escapeHTML(card.level)}</span><span class="tag">${escapeHTML(card.tags[0])}</span><button class="text-button" data-action="topic" data-topic="${card.topic_id}">Практиковать тему ${icon("arrow")}</button></div></article>`).join("") : `<div class="empty-state"><h3>Пока нет вопросов</h3><p>Попробуй выбрать другую тему.</p></div>`;
 }
 
-async function renderHistory() {
-  const result = await api("/history");
-  if (state.page !== "history") return;
+async function renderHistory(page = state.historyPage) {
+  const version = ++state.historyVersion;
+  const result = await api(`/history?page=${page}`);
+  if (version !== state.historyVersion || state.page !== "history") return;
+  const changedPage = result.page !== state.historyPage;
+  state.historyPage = result.page;
   setPage(`<div class="page-title"><div><span class="eyebrow">ПРОГРЕСС СКЛАДЫВАЕТСЯ ИЗ ПРАКТИКИ</span><h1>История тренировок</h1><p>Твои ответы и разборы сохраняются между запусками.</p></div></div>${result.sessions.length ? `<div class="history-list">${result.sessions.map((session) => `<article class="history-item"><span class="metric-icon">${icon(session.completed_at ? "check" : "clock")}</span><div><h3>${escapeHTML(topicName(session.topic))}</h3><p>${escapeHTML(formatDate(session.created_at))} · Ответов: ${session.answered} · ${session.completed_at ? "Завершена" : "В процессе"}</p></div><button class="button small" data-action="open-session" data-id="${session.id}">${session.completed_at ? "Посмотреть" : "Продолжить"} ${icon("arrow")}</button></article>`).join("")}</div>` : `<div class="empty-state">${icon("clock")}<h3>Первая тренировка ещё впереди</h3><p>Начни с пары вопросов. Здесь появятся твои ответы, разборы и темы для повторения.</p><button class="button primary" data-action="start">Начать практику ${icon("arrow")}</button></div>`}`, "История");
+  if (result.total_pages > 1) {
+    const first = (result.page - 1) * result.page_size + 1;
+    const last = first + result.sessions.length - 1;
+    $("#app-content").insertAdjacentHTML("beforeend", `<nav class="history-pagination" aria-label="Страницы истории"><button class="button small" data-action="history-page" data-page="${result.page - 1}" ${result.page === 1 ? "disabled" : ""} aria-label="Предыдущая страница истории">Назад</button><div class="history-page-info" role="status">Страница ${result.page} из ${result.total_pages}<span>Показаны ${first}–${last} из ${result.total}</span></div><button class="button small" data-action="history-page" data-page="${result.page + 1}" ${result.page === result.total_pages ? "disabled" : ""} aria-label="Следующая страница истории">Далее</button></nav>`);
+  }
+  if (changedPage) window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 function showSettings() {
@@ -583,6 +589,7 @@ document.addEventListener("click", async (event) => {
     else if (action === "speak") { if (state.recorder?.state === "recording") return; speak(target.dataset.text, { force: true }); }
     else if (action === "toggle-sound") { setAutoSpeech(!state.sound); toast(state.sound ? "Автоозвучка включена." : "Автоозвучка выключена. Сообщения можно послушать кнопкой динамика."); }
     else if (action === "filter") { state.libraryTopic = target.dataset.topic; await renderLibrary(); }
+    else if (action === "history-page") { target.disabled = true; try { await renderHistory(Number(target.dataset.page)); } finally { target.disabled = false; } }
     else if (action === "open-session") { applySession(await api(`/sessions/${target.dataset.id}`)); storage.set("ml-session", state.session.id); location.hash = "training"; }
     else if (action === "reload") await route();
     else if (action === "shutdown") { discardRecording(); cancelSpeech(); if (isDesktop()) { await window.pywebview.api.close(); return; } await api("/shutdown", { method: "POST" }); $("#settings-dialog").close(); setPage(`<div class="empty-state">${icon("check")}<h3>Приложение остановлено</h3><p>Можно закрыть окно. Чтобы продолжить, снова нажми на ярлык ML Trainer.</p></div>`, "До встречи"); }
