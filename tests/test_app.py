@@ -9,7 +9,7 @@ from app.server import create_app
 
 
 def settings_at(path: Path):
-    return Settings(data_dir=path, deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
+    return Settings(data_dir=path, deepgram_key="", openai_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
 
 
 def authenticated(client):

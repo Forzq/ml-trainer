@@ -16,7 +16,7 @@ ASYNC_CLIENT = httpx.AsyncClient
 
 
 def settings_at(path):
-    return Settings(data_dir=path, deepgram_key="", openrouter_key="", model="", embedding_model="",
+    return Settings(data_dir=path, deepgram_key="", openai_key="", openrouter_key="", model="", embedding_model="",
                     qdrant_url="", qdrant_key="", tts_provider="fish", fish_key="private-fish-key",
                     fish_voice_id="1db1618b6eaf4571ac7db70e20eb6727", fish_model="s2.1-pro-free")
 

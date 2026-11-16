@@ -19,6 +19,7 @@ from app.store import Store
 from app.speech import Speech, SpeechError
 from app.trainer import discuss, evaluate
 from app.transcription import clean_transcript
+from app.recognition import RecognitionError, recognize_audio
 from app.catalog import LEVELS, TOPICS, canonical_topic
 from app.selection import select_questions
 
@@ -73,6 +74,7 @@ def create_app(settings: Settings | None = None):
         return {
             "token": app.state.token, "ai": settings.ai_enabled,
             "deepgram": bool(settings.deepgram_key), "model": settings.model,
+            "whisper": bool(settings.openai_key), "whisper_model": settings.openai_transcription_model,
             "transcription": {"ready": settings.transcription_enabled, "model": settings.transcription_model_name},
             "tts": {"provider": settings.tts_provider, "ready": settings.fish_enabled,
                     "voice_id": settings.fish_voice_id, "model": settings.fish_model},
@@ -245,8 +247,8 @@ def create_app(settings: Settings | None = None):
     @app.post("/api/transcribe")
     async def transcribe(audio: UploadFile = File(...), session_id: str | None = Form(None),
                          question_id: int | None = Form(None)):
-        if not settings.deepgram_key:
-            raise HTTPException(409, "Для распознавания добавь DEEPGRAM_API_KEY в .env и перезапусти приложение.")
+        if not settings.stt_enabled:
+            raise HTTPException(409, "Для распознавания добавь DEEPGRAM_API_KEY или OPENAI_API_KEY в .env и перезапусти приложение.")
         raw = await audio.read(20 * 1024 * 1024 + 1)
         if len(raw) > 20 * 1024 * 1024:
             raise HTTPException(413, "Запись слишком длинная. Лимит — 20 МБ.")
@@ -261,19 +263,9 @@ def create_app(settings: Settings | None = None):
                 raise HTTPException(409, "Вопрос уже изменился. Запиши ответ на текущий вопрос.")
             context = current["question"]
         try:
-            async with httpx.AsyncClient(timeout=90) as client:
-                response = await client.post(
-                    "https://api.deepgram.com/v1/listen",
-                    params={"model": "nova-3", "language": "multi", "smart_format": "true"},
-                    headers={"Authorization": f"Token {settings.deepgram_key}", "Content-Type": audio.content_type or "audio/webm"},
-                    content=raw,
-                )
-                response.raise_for_status()
-                text = response.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
-                if not isinstance(text, str):
-                    raise ValueError("Invalid Deepgram transcript")
-        except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError):
-            raise HTTPException(502, "Deepgram не смог распознать запись. Проверь ключ и подключение.")
+            text, provider = await recognize_audio(raw, audio.content_type or "audio/webm", settings)
+        except RecognitionError as error:
+            raise HTTPException(502, str(error)) from None
         raw_text = text
         cleanup = "disabled" if not settings.transcription_enabled else "skipped"
         if settings.transcription_enabled and text.strip():
@@ -285,7 +277,7 @@ def create_app(settings: Settings | None = None):
                 LOG.warning("Transcript cleanup unavailable; returning original recognition")
                 text = raw_text
                 cleanup = "unavailable"
-        return {"text": text, "raw_text": raw_text, "cleanup": cleanup}
+        return {"text": text, "raw_text": raw_text, "cleanup": cleanup, "provider": provider}
 
     class SpeechRequest(BaseModel):
         text: str = Field(min_length=1, max_length=6000)

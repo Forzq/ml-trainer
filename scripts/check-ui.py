@@ -27,7 +27,7 @@ def main():
     # Keep browser fixtures outside pytest's managed directory and its Windows ACLs.
     (ROOT / "logs/ui-check").mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=ROOT / "logs/ui-check", prefix="browser-") as temporary:
-        settings = Settings(data_dir=Path(temporary), deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
+        settings = Settings(data_dir=Path(temporary), deepgram_key="", openai_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
@@ -88,7 +88,7 @@ def main():
                 page.reload()
                 expect(page.locator("#answer-input")).to_have_value("Модель запоминает шум, хуже работает на новых данных. Сравниваем с валидацией.")
                 page.get_by_role("button", name="Ответить голосом", exact=True).click()
-                expect(page.locator("#toast")).to_contain_text("нужен ключ Deepgram")
+                expect(page.locator("#toast")).to_contain_text("DEEPGRAM_API_KEY или OPENAI_API_KEY")
                 page.get_by_role("button", name="Проверить ответ", exact=True).click()
                 expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_visible()
                 expect(page.locator(".message-text").last).to_contain_text("Демо-разбор")
@@ -158,7 +158,8 @@ def main():
                 def configured(route):
                     response = route.fetch()
                     config = response.json()
-                    config["deepgram"] = True
+                    config["deepgram"] = False
+                    config["whisper"] = True
                     route.fulfill(response=response, json=config)
                 page.route("**/api/config", configured)
                 transcriptions = []
@@ -166,11 +167,14 @@ def main():
                     transcriptions.append(route.request.post_data_buffer.decode("utf-8", errors="replace"))
                     if len(transcriptions) == 1:
                         route.fulfill(json={"text": "Я сравню ROC-AUC и PR-AUC, но не уверен.",
-                                            "raw_text": "Ээ, я сравню rock aug и pr aug, но не уверен.", "cleanup": "applied"})
+                                            "raw_text": "Ээ, я сравню rock aug и pr aug, но не уверен.", "cleanup": "applied", "provider": "whisper"})
                     else:
-                        route.fulfill(json={"text": "Эм, это моя оговорка.", "raw_text": "Эм, это моя оговорка.", "cleanup": "unavailable"})
+                        route.fulfill(json={"text": "Эм, это моя оговорка.", "raw_text": "Эм, это моя оговорка.", "cleanup": "unavailable", "provider": "whisper"})
                 page.route("**/api/transcribe", transcription_response)
                 page.goto(url)
+                page.get_by_role("button", name="Подключения", exact=True).first.click()
+                expect(page.locator(".connection").filter(has_text="OpenAI Whisper")).to_contain_text("Настроен")
+                page.get_by_role("button", name="Понятно").click()
                 page.get_by_role("button", name="Начать тренировку", exact=True).click()
                 page.locator("#session-topic").select_option("cv")
                 page.locator("#session-level").select_option("Middle")
@@ -184,6 +188,7 @@ def main():
                 page.wait_for_timeout(1200)
                 page.get_by_role("button", name="Закончить запись", exact=True).click()
                 expect(page.locator("#answer-input")).to_have_value("Мой пример: Я сравню ROC-AUC и PR-AUC, но не уверен.")
+                expect(page.locator("#toast")).to_contain_text("Использован Whisper")
                 expect(page.locator("#transcription-review")).to_contain_text("Ээ, я сравню rock aug и pr aug, но не уверен.")
                 page.locator("#transcription-review summary").click()
                 expect(page.locator("#transcription-review p")).to_be_visible()

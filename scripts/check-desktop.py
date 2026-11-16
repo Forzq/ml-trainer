@@ -47,7 +47,7 @@ def main():
     # WebView2 may retain telemetry files briefly after its last window closes.
     with tempfile.TemporaryDirectory(dir=ROOT / "logs/native-check", prefix="native-", ignore_cleanup_errors=True) as temporary:
         temp = Path(temporary)
-        settings = Settings(data_dir=temp / "data", deepgram_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
+        settings = Settings(data_dir=temp / "data", deepgram_key="", openai_key="", openrouter_key="", model="", embedding_model="", qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]

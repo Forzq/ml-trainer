@@ -14,7 +14,7 @@ CLEAN = "Я бы сравнил ROC-AUC и PR-AUC, но не уверен."
 
 
 def settings_at(path):
-    return Settings(data_dir=path, deepgram_key="private-deepgram", openrouter_key="private-openrouter",
+    return Settings(data_dir=path, deepgram_key="private-deepgram", openai_key="", openrouter_key="private-openrouter",
                     model="same-trainer-model", transcription_model="", embedding_model="", qdrant_url="", qdrant_key="",
                     tts_provider="system", fish_key="")
 
@@ -48,7 +48,7 @@ def test_voice_cleanup_uses_same_model_and_only_public_question_context(tmp_path
         state = client.post("/api/sessions", headers=headers, json={"topic": "classical_ml", "count": 1}).json()
         response = transcribe(client, data={"session_id": state["id"], "question_id": state["question"]["id"]})
         assert response.status_code == 200
-        assert response.json() == {"text": CLEAN, "raw_text": RAW, "cleanup": "applied"}
+        assert response.json() == {"text": CLEAN, "raw_text": RAW, "cleanup": "applied", "provider": "deepgram"}
         assert len(requests) == 2
         assert requests[0].content == b"test-audio"
         assert requests[0].headers["authorization"] == "Token private-deepgram"
@@ -102,7 +102,7 @@ def test_failed_cleanup_preserves_raw_speech(tmp_path, failure):
     with TestClient(create_app(settings_at(tmp_path))) as client, provider(respond):
         response = transcribe(client)
         assert response.status_code == 200
-        assert response.json() == {"text": RAW, "raw_text": RAW, "cleanup": "unavailable"}
+        assert response.json() == {"text": RAW, "raw_text": RAW, "cleanup": "unavailable", "provider": "deepgram"}
         assert "private-openrouter" not in response.text
 
 
@@ -127,7 +127,7 @@ def test_without_openrouter_recognition_still_works(tmp_path):
         assert request.url.host == "api.deepgram.com"
         return recognized(RAW)
     with TestClient(create_app(settings)) as client, provider(respond):
-        assert transcribe(client).json() == {"text": RAW, "raw_text": RAW, "cleanup": "disabled"}
+        assert transcribe(client).json() == {"text": RAW, "raw_text": RAW, "cleanup": "disabled", "provider": "deepgram"}
         assert len(requests) == 1
 
 
@@ -145,7 +145,9 @@ def test_deepgram_failure_does_not_call_editor(tmp_path):
 
 
 def test_invalid_audio_and_stale_context_never_reach_providers(tmp_path):
-    with TestClient(create_app(settings_at(tmp_path))) as client, patch("app.transcription.httpx.AsyncClient") as upstream:
+    settings = settings_at(tmp_path)
+    settings.openai_key = "private-openai"
+    with TestClient(create_app(settings)) as client, patch("app.transcription.httpx.AsyncClient") as upstream:
         headers = {"X-App-Token": client.get("/api/config").json()["token"]}
         state = client.post("/api/sessions", headers=headers, json={"count": 1}).json()
         assert transcribe(client, data={"session_id": state["id"]}).status_code == 422

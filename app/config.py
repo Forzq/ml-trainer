@@ -12,6 +12,8 @@ load_dotenv(ROOT / ".env")
 class Settings:
     data_dir: Path = ROOT / "data"
     deepgram_key: str = os.getenv("DEEPGRAM_API_KEY", "")
+    openai_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_transcription_model: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1") or "whisper-1"
     openrouter_key: str = os.getenv("OPENROUTER_API_KEY", "")
     model: str = os.getenv("OPENROUTER_MODEL", "")
     transcription_model: str = os.getenv("OPENROUTER_TRANSCRIPTION_MODEL", "")
@@ -23,6 +25,10 @@ class Settings:
     fish_voice_id: str = os.getenv("FISH_AUDIO_VOICE_ID", "1db1618b6eaf4571ac7db70e20eb6727")
     fish_model: str = os.getenv("FISH_AUDIO_MODEL", "s2.1-pro-free")
     fish_latency: str = os.getenv("FISH_AUDIO_LATENCY", "low")
+
+    @property
+    def stt_enabled(self) -> bool:
+        return bool(self.deepgram_key or self.openai_key)
 
     @property
     def ai_enabled(self) -> bool:
