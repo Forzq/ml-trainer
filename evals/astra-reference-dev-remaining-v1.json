@@ -1,0 +1,1187 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-17",
+  "reviewer_model": "gpt-6-astra (session configuration)",
+  "provenance": "Automated silver review, not human gold",
+  "stage": "Judgements written in tool command before inference, but initial save failed with SyntaxError. Corrected file saved during inference after seeing the first three q145 scores (all 100). No prediction content or proposed labels inspected before this corrected save. This is a protocol deviation, not a fully precommitted blind reference.",
+  "limitations": "Same chat and visible source reference; only four independent questions. First three q145 scores visible before successful save.",
+  "weights": {
+    "c1": 34,
+    "c2": 33,
+    "c3": 33
+  },
+  "rubric_findings": {
+    "145": "c3 heavily weights an implication of unequal variances; c2 combines separate variances and df without subweights.",
+    "251": "Reference wording about more expensive indexing for cross-encoder is misleading: standard cross-encoder has no reusable independent document index. Reranking is an application, not definition.",
+    "351": "COCO AP uses interpolated precision at 101 recall levels; area under PR is reasonable interview shorthand. Gap suggests localization problems, not proof classes are correct.",
+    "449": "Inverse LR scaling compensates uniform gradient scaling for appropriate update rules such as plain SGD, not arbitrary optimizers/clipping/decay. Different randomness changes exact realization, not necessarily expected gradient; matched per-example randomness can preserve equality. c1/c2 overlap."
+  },
+  "sources": [
+    "https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.ttest_ind.html",
+    "https://www.sbert.net/examples/sentence_transformer/applications/retrieve_rerank/README.html",
+    "https://raw.githubusercontent.com/cocodataset/cocoapi/master/PythonAPI/pycocotools/cocoeval.py",
+    "https://docs.pytorch.org/docs/2.15/notes/amp_examples.html#gradient-accumulation"
+  ],
+  "cases": [
+    {
+      "case_id": "q145-01d6c66b24",
+      "question_id": 145,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки.",
+          "rationale": "Related observations and within-pair differences correctly distinguished from independent samples."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки.",
+          "rationale": "Unequal variances and altered approximate degrees of freedom sufficiently explained; exact formula not required."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки.",
+          "rationale": "Unequal variances and sample sizes threaten pooled-test calibration."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-1c75d5746e",
+      "question_id": 145,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки. Повторю ту же мысль другими словами, не добавляя условий: Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки.",
+          "rationale": "Related observations and within-pair differences correctly distinguished from independent samples."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки. Повторю ту же мысль другими словами, не добавляя условий: Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки.",
+          "rationale": "Unequal variances and altered approximate degrees of freedom sufficiently explained; exact formula not required."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки. Повторю ту же мысль другими словами, не добавляя условий: Для связанных измерений, например до и после у одних людей, беру парный t-тест по разностям внутри пар. Для несвязанных групп нужен тест независимых выборок. Уэлч не требует равных дисперсий: использует отдельные оценки и приближённые степени свободы, тогда как классический вариант объединяет дисперсии. При неравных дисперсиях и размерах групп pooled-вариант может исказить уровень ошибки.",
+          "rationale": "Unequal variances and sample sizes threaten pooled-test calibration."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-d66ddde5b5",
+      "question_id": 145,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. Если каждому наблюдению в первой группе соответствует конкретное наблюдение во второй, анализирую набор их разностей. При независимых группах пары создавать нельзя. Для них вариант Уэлча позволяет дисперсиям отличаться и иначе рассчитывает число степеней свободы. Объединённая оценка дисперсии особенно рискованна, когда вместе отличаются дисперсии и объёмы групп. Ну вот.",
+          "rationale": "Related observations and within-pair differences correctly distinguished from independent samples."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. Если каждому наблюдению в первой группе соответствует конкретное наблюдение во второй, анализирую набор их разностей. При независимых группах пары создавать нельзя. Для них вариант Уэлча позволяет дисперсиям отличаться и иначе рассчитывает число степеней свободы. Объединённая оценка дисперсии особенно рискованна, когда вместе отличаются дисперсии и объёмы групп. Ну вот.",
+          "rationale": "Unequal variances and altered approximate degrees of freedom sufficiently explained; exact formula not required."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. Если каждому наблюдению в первой группе соответствует конкретное наблюдение во второй, анализирую набор их разностей. При независимых группах пары создавать нельзя. Для них вариант Уэлча позволяет дисперсиям отличаться и иначе рассчитывает число степеней свободы. Объединённая оценка дисперсии особенно рискованна, когда вместе отличаются дисперсии и объёмы групп. Ну вот.",
+          "rationale": "Unequal variances and sample sizes threaten pooled-test calibration."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-9e8ffe9f6f",
+      "question_id": 145,
+      "allowed_scores": [
+        51,
+        59
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "До и после на одних объектах сравниваю парным тестом по разностям. Для независимых групп использую отдельный тест. Уэлч допускает разные дисперсии, но детали степеней свободы я не помню.",
+          "rationale": "Related observations and within-pair differences correctly distinguished from independent samples."
+        },
+        {
+          "id": "c2",
+          "status": "partial",
+          "allowed_credits": [
+            2,
+            3
+          ],
+          "evidence_context": "До и после на одних объектах сравниваю парным тестом по разностям. Для независимых групп использую отдельный тест. Уэлч допускает разные дисперсии, но детали степеней свободы я не помню.",
+          "rationale": "Allows unequal variances, but omits separate estimates and approximate df."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No explanation of this criterion; omission is not a false assertion."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-f5a78db5ce",
+      "question_id": 145,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Парный тест предназначен именно для независимых людей, пары не нужны. Уэлч требует равенства дисперсий и всегда использует одну объединённую дисперсию с теми же степенями свободы. Неравенство дисперсий и размеров групп никак не влияет на корректность pooled t-теста.",
+          "rationale": "Explicit contradiction of: Related observations and within-pair differences correctly distinguished from independent samples. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Парный тест предназначен именно для независимых людей, пары не нужны. Уэлч требует равенства дисперсий и всегда использует одну объединённую дисперсию с теми же степенями свободы. Неравенство дисперсий и размеров групп никак не влияет на корректность pooled t-теста.",
+          "rationale": "Explicit contradiction of: Unequal variances and altered approximate degrees of freedom sufficiently explained; exact formula not required. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Парный тест предназначен именно для независимых людей, пары не нужны. Уэлч требует равенства дисперсий и всегда использует одну объединённую дисперсию с теми же степенями свободы. Неравенство дисперсий и размеров групп никак не влияет на корректность pooled t-теста.",
+          "rationale": "Explicit contradiction of: Unequal variances and sample sizes threaten pooled-test calibration. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-ea40314eff",
+      "question_id": 145,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Парный тест предназначен именно для независимых людей, пары не нужны. Уэлч требует равенства дисперсий и всегда использует одну объединённую дисперсию с теми же степенями свободы. Неравенство дисперсий и размеров групп никак не влияет на корректность pooled t-теста.",
+          "rationale": "Explicit contradiction of: Related observations and within-pair differences correctly distinguished from independent samples. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Парный тест предназначен именно для независимых людей, пары не нужны. Уэлч требует равенства дисперсий и всегда использует одну объединённую дисперсию с теми же степенями свободы. Неравенство дисперсий и размеров групп никак не влияет на корректность pooled t-теста.",
+          "rationale": "Explicit contradiction of: Unequal variances and altered approximate degrees of freedom sufficiently explained; exact formula not required. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Парный тест предназначен именно для независимых людей, пары не нужны. Уэлч требует равенства дисперсий и всегда использует одну объединённую дисперсию с теми же степенями свободы. Неравенство дисперсий и размеров групп никак не влияет на корректность pooled t-теста.",
+          "rationale": "Explicit contradiction of: Unequal variances and sample sizes threaten pooled-test calibration. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-3aa50bb6c8",
+      "question_id": 145,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q145-4a743bc7f5",
+      "question_id": 145,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-c0e05c15f2",
+      "question_id": 251,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных.",
+          "rationale": "Separate encoding and reusable indexed document embeddings."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных.",
+          "rationale": "Joint pair processing and reranking of candidates."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных.",
+          "rationale": "Tradeoff of quality, pairwise cost and latency without universal superiority."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-6b854c6fa5",
+      "question_id": 251,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных. Повторю ту же мысль другими словами, не добавляя условий: Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных.",
+          "rationale": "Separate encoding and reusable indexed document embeddings."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных. Повторю ту же мысль другими словами, не добавляя условий: Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных.",
+          "rationale": "Joint pair processing and reranking of candidates."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных. Повторю ту же мысль другими словами, не добавляя условий: Bi-encoder отдельно кодирует запрос и документ, поэтому векторы документов можно заранее сохранить в индексе и быстро искать похожие. Cross-encoder совместно обрабатывает пару, учитывая взаимодействия токенов, поэтому обычно применяют его как reranker к небольшому числу кандидатов. Качество сравнения может быть выше, но совместный расчёт каждой пары дороже и медленнее; выигрыш проверяют на своих данных.",
+          "rationale": "Tradeoff of quality, pairwise cost and latency without universal superiority."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-0fcc2987e5",
+      "question_id": 251,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. При раздельном кодировании одна и та же коллекция документов превращается в переиспользуемые векторы. Совместный кодировщик видит запрос и документ вместе и рассчитывает новую оценку их соответствия. Для большого корпуса удобно сначала дешёво найти кандидатов, затем уточнить их порядок более дорогим совместным анализом. Это компромисс качества и задержки, а не универсальное превосходство одной схемы. Ну вот.",
+          "rationale": "Separate encoding and reusable indexed document embeddings."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. При раздельном кодировании одна и та же коллекция документов превращается в переиспользуемые векторы. Совместный кодировщик видит запрос и документ вместе и рассчитывает новую оценку их соответствия. Для большого корпуса удобно сначала дешёво найти кандидатов, затем уточнить их порядок более дорогим совместным анализом. Это компромисс качества и задержки, а не универсальное превосходство одной схемы. Ну вот.",
+          "rationale": "Joint pair processing and reranking of candidates."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. При раздельном кодировании одна и та же коллекция документов превращается в переиспользуемые векторы. Совместный кодировщик видит запрос и документ вместе и рассчитывает новую оценку их соответствия. Для большого корпуса удобно сначала дешёво найти кандидатов, затем уточнить их порядок более дорогим совместным анализом. Это компромисс качества и задержки, а не универсальное превосходство одной схемы. Ну вот.",
+          "rationale": "Tradeoff of quality, pairwise cost and latency without universal superiority."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-6985751167",
+      "question_id": 251,
+      "allowed_scores": [
+        51,
+        59
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Bi-encoder делает отдельные векторы запроса и документа, документы индексируются заранее. Cross-encoder видит их вместе, но про применение и стоимость пока не скажу.",
+          "rationale": "Separate encoding and reusable indexed document embeddings."
+        },
+        {
+          "id": "c2",
+          "status": "partial",
+          "allowed_credits": [
+            2,
+            3
+          ],
+          "evidence_context": "Bi-encoder делает отдельные векторы запроса и документа, документы индексируются заранее. Cross-encoder видит их вместе, но про применение и стоимость пока не скажу.",
+          "rationale": "Joint processing stated but reranking omitted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No explanation of this criterion; omission is not a false assertion."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-ae73e2c643",
+      "question_id": 251,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Bi-encoder обязательно совместно кодирует каждую пару и не допускает предварительного индекса. Cross-encoder кодирует документы независимо от запроса, поэтому один вектор можно всегда переиспользовать. Пересчёт всех пар cross-encoder всегда дешевле и быстрее поиска по индексу.",
+          "rationale": "Explicit contradiction of: Separate encoding and reusable indexed document embeddings. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Bi-encoder обязательно совместно кодирует каждую пару и не допускает предварительного индекса. Cross-encoder кодирует документы независимо от запроса, поэтому один вектор можно всегда переиспользовать. Пересчёт всех пар cross-encoder всегда дешевле и быстрее поиска по индексу.",
+          "rationale": "Explicit contradiction of: Joint pair processing and reranking of candidates. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Bi-encoder обязательно совместно кодирует каждую пару и не допускает предварительного индекса. Cross-encoder кодирует документы независимо от запроса, поэтому один вектор можно всегда переиспользовать. Пересчёт всех пар cross-encoder всегда дешевле и быстрее поиска по индексу.",
+          "rationale": "Explicit contradiction of: Tradeoff of quality, pairwise cost and latency without universal superiority. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-f60ee445df",
+      "question_id": 251,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Bi-encoder обязательно совместно кодирует каждую пару и не допускает предварительного индекса. Cross-encoder кодирует документы независимо от запроса, поэтому один вектор можно всегда переиспользовать. Пересчёт всех пар cross-encoder всегда дешевле и быстрее поиска по индексу.",
+          "rationale": "Explicit contradiction of: Separate encoding and reusable indexed document embeddings. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Bi-encoder обязательно совместно кодирует каждую пару и не допускает предварительного индекса. Cross-encoder кодирует документы независимо от запроса, поэтому один вектор можно всегда переиспользовать. Пересчёт всех пар cross-encoder всегда дешевле и быстрее поиска по индексу.",
+          "rationale": "Explicit contradiction of: Joint pair processing and reranking of candidates. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Bi-encoder обязательно совместно кодирует каждую пару и не допускает предварительного индекса. Cross-encoder кодирует документы независимо от запроса, поэтому один вектор можно всегда переиспользовать. Пересчёт всех пар cross-encoder всегда дешевле и быстрее поиска по индексу.",
+          "rationale": "Explicit contradiction of: Tradeoff of quality, pairwise cost and latency without universal superiority. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-3aa50bb6c8",
+      "question_id": 251,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q251-4a743bc7f5",
+      "question_id": 251,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-40d153f824",
+      "question_id": 351,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов.",
+          "rationale": "PR evaluation at overlap 0.5 sufficiently conveys AP50 without an integration formula."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов.",
+          "rationale": "Ten stricter thresholds refer to the range already supplied in the question."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов.",
+          "rationale": "Localization errors explain the gap; it does not prove classification-only errors."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-8d10fe5718",
+      "question_id": 351,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов. Повторю ту же мысль другими словами, не добавляя условий: AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов.",
+          "rationale": "PR evaluation at overlap 0.5 sufficiently conveys AP50 without an integration formula."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов. Повторю ту же мысль другими словами, не добавляя условий: AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов.",
+          "rationale": "Ten stricter thresholds refer to the range already supplied in the question."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов. Повторю ту же мысль другими словами, не добавляя условий: AP50 считает площадь под PR-кривой, сопоставляя детекции с разметкой при пороге IoU 0,50. COCO AP50:95 усредняет AP по десяти порогам от 0,50 до 0,95 с шагом 0,05. Если AP50 заметно лучше, рамки могут быть достаточно близкими для мягкого порога, но слишком грубыми для строгого: проверяю локализацию, AP75 и ошибки на изображениях, а не объявляю это только ошибкой классов.",
+          "rationale": "Localization errors explain the gap; it does not prove classification-only errors."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-1f26117aa2",
+      "question_id": 351,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. В первом случае PR-кривая строится для одного правила попадания: перекрытие рамки не меньше половины. Во втором качество усредняется для десяти всё более строгих требований к перекрытию. Сильное падение при ужесточении часто указывает на неточные координаты рамок, даже если объекты и классы обычно находятся правильно. Ну вот.",
+          "rationale": "PR evaluation at overlap 0.5 sufficiently conveys AP50 without an integration formula."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. В первом случае PR-кривая строится для одного правила попадания: перекрытие рамки не меньше половины. Во втором качество усредняется для десяти всё более строгих требований к перекрытию. Сильное падение при ужесточении часто указывает на неточные координаты рамок, даже если объекты и классы обычно находятся правильно. Ну вот.",
+          "rationale": "Ten stricter thresholds refer to the range already supplied in the question."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. В первом случае PR-кривая строится для одного правила попадания: перекрытие рамки не меньше половины. Во втором качество усредняется для десяти всё более строгих требований к перекрытию. Сильное падение при ужесточении часто указывает на неточные координаты рамок, даже если объекты и классы обычно находятся правильно. Ну вот.",
+          "rationale": "Localization errors explain the gap; it does not prove classification-only errors."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-ead1e759ad",
+      "question_id": 351,
+      "allowed_scores": [
+        42,
+        51
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "AP50 — площадь под PR-кривой при сопоставлении рамок с IoU от 0,5. Второе число усредняет несколько порогов, но какие именно и что значит разница, не объясню.",
+          "rationale": "PR evaluation at overlap 0.5 sufficiently conveys AP50 without an integration formula."
+        },
+        {
+          "id": "c2",
+          "status": "partial",
+          "allowed_credits": [
+            1,
+            2
+          ],
+          "evidence_context": "AP50 — площадь под PR-кривой при сопоставлении рамок с IoU от 0,5. Второе число усредняет несколько порогов, но какие именно и что значит разница, не объясню.",
+          "rationale": "Threshold averaging stated; count/range and interpretation explicitly unknown."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No explanation of this criterion; omission is not a false assertion."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-1b24a35eca",
+      "question_id": 351,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "AP50 означает ровно 50% правильных классов при любом IoU. AP50:95 усредняет показатели по 45 классам, а не по IoU-порогам. Большая разница доказывает исключительно ошибки классификации; точность координат рамок к ней отношения не имеет.",
+          "rationale": "Explicit contradiction of: PR evaluation at overlap 0.5 sufficiently conveys AP50 without an integration formula. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "AP50 означает ровно 50% правильных классов при любом IoU. AP50:95 усредняет показатели по 45 классам, а не по IoU-порогам. Большая разница доказывает исключительно ошибки классификации; точность координат рамок к ней отношения не имеет.",
+          "rationale": "Explicit contradiction of: Ten stricter thresholds refer to the range already supplied in the question. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "AP50 означает ровно 50% правильных классов при любом IoU. AP50:95 усредняет показатели по 45 классам, а не по IoU-порогам. Большая разница доказывает исключительно ошибки классификации; точность координат рамок к ней отношения не имеет.",
+          "rationale": "Explicit contradiction of: Localization errors explain the gap; it does not prove classification-only errors. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-1681a38e8d",
+      "question_id": 351,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: AP50 означает ровно 50% правильных классов при любом IoU. AP50:95 усредняет показатели по 45 классам, а не по IoU-порогам. Большая разница доказывает исключительно ошибки классификации; точность координат рамок к ней отношения не имеет.",
+          "rationale": "Explicit contradiction of: PR evaluation at overlap 0.5 sufficiently conveys AP50 without an integration formula. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: AP50 означает ровно 50% правильных классов при любом IoU. AP50:95 усредняет показатели по 45 классам, а не по IoU-порогам. Большая разница доказывает исключительно ошибки классификации; точность координат рамок к ней отношения не имеет.",
+          "rationale": "Explicit contradiction of: Ten stricter thresholds refer to the range already supplied in the question. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: AP50 означает ровно 50% правильных классов при любом IoU. AP50:95 усредняет показатели по 45 классам, а не по IoU-порогам. Большая разница доказывает исключительно ошибки классификации; точность координат рамок к ней отношения не имеет.",
+          "rationale": "Explicit contradiction of: Localization errors explain the gap; it does not prove classification-only errors. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-3aa50bb6c8",
+      "question_id": 351,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q351-4a743bc7f5",
+      "question_id": 351,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-0c5d47d191",
+      "question_id": 449,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается.",
+          "rationale": "Equal microbatch mean losses averaged; one update after accumulation."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается.",
+          "rationale": "Failure to average changes gradient scale; averaging procedure conveys the relationship."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается.",
+          "rationale": "Batch-dependent statistics and random masks/transforms can prevent exact equality."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-3a3b3c9723",
+      "question_id": 449,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается. Повторю ту же мысль другими словами, не добавляя условий: Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается.",
+          "rationale": "Equal microbatch mean losses averaged; one update after accumulation."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается. Повторю ту же мысль другими словами, не добавляя условий: Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается.",
+          "rationale": "Failure to average changes gradient scale; averaging procedure conveys the relationship."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Объясню подробно. Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается. Повторю ту же мысль другими словами, не добавляя условий: Для равных microbatch с mean-loss делю каждый loss на число накоплений и делаю один optimizer step после суммирования градиентов; тогда агрегация соответствует среднему по общему батчу. Сумма средних без нормировки даст градиент больше в число накоплений раз: sum и mean нельзя смешивать. BatchNorm видит отдельные microbatch, а dropout и аугментации зависят от случайных операций, поэтому точная эквивалентность большому батчу обычно нарушается.",
+          "rationale": "Batch-dependent statistics and random masks/transforms can prevent exact equality."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-8a49a47d02",
+      "question_id": 449,
+      "allowed_scores": [
+        100
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. Обновлять параметры нужно только после нескольких backward, с тем же взвешиванием примеров, что у большого батча. Если маленькие батчи равны и каждый loss уже усреднён, накопленную сумму ещё усредняют по их числу. Иначе меняется масштаб шага. Полное совпадение также мешают получить статистики нормализации по батчу и различия случайных масок или преобразований. Ну вот.",
+          "rationale": "Equal microbatch mean losses averaged; one update after accumulation."
+        },
+        {
+          "id": "c2",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. Обновлять параметры нужно только после нескольких backward, с тем же взвешиванием примеров, что у большого батча. Если маленькие батчи равны и каждый loss уже усреднён, накопленную сумму ещё усредняют по их числу. Иначе меняется масштаб шага. Полное совпадение также мешают получить статистики нормализации по батчу и различия случайных масок или преобразований. Ну вот.",
+          "rationale": "Failure to average changes gradient scale; averaging procedure conveys the relationship."
+        },
+        {
+          "id": "c3",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Эээ, я бы сказал так. Обновлять параметры нужно только после нескольких backward, с тем же взвешиванием примеров, что у большого батча. Если маленькие батчи равны и каждый loss уже усреднён, накопленную сумму ещё усредняют по их числу. Иначе меняется масштаб шага. Полное совпадение также мешают получить статистики нормализации по батчу и различия случайных масок или преобразований. Ну вот.",
+          "rationale": "Batch-dependent statistics and random masks/transforms can prevent exact equality."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-d521b7338d",
+      "question_id": 449,
+      "allowed_scores": [
+        42,
+        51
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "evidence_context": "Для одинаковых маленьких батчей делю mean-loss на число накоплений, суммирую градиенты и один раз обновляю веса. Это меняет масштаб относительно простой суммы, но точную связь с sum и влияние BatchNorm пока не объясню.",
+          "rationale": "Equal microbatch mean losses averaged; one update after accumulation."
+        },
+        {
+          "id": "c2",
+          "status": "partial",
+          "allowed_credits": [
+            1,
+            2
+          ],
+          "evidence_context": "Для одинаковых маленьких батчей делю mean-loss на число накоплений, суммирую градиенты и один раз обновляю веса. Это меняет масштаб относительно простой суммы, но точную связь с sum и влияние BatchNorm пока не объясню.",
+          "rationale": "Scale change recognized but precise sum/mean relationship explicitly unexplained."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No explanation of this criterion; omission is not a false assertion."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-c854719e01",
+      "question_id": 449,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Чтобы получить один большой batch, надо делать optimizer step после каждого microbatch. Средние loss можно просто суммировать без нормировки, и это всегда тот же самый градиент: sum и mean ничем не отличаются. BatchNorm, dropout и аугментации гарантированно работают совершенно одинаково при любом разбиении.",
+          "rationale": "Explicit contradiction of: Equal microbatch mean losses averaged; one update after accumulation. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Чтобы получить один большой batch, надо делать optimizer step после каждого microbatch. Средние loss можно просто суммировать без нормировки, и это всегда тот же самый градиент: sum и mean ничем не отличаются. BatchNorm, dropout и аугментации гарантированно работают совершенно одинаково при любом разбиении.",
+          "rationale": "Explicit contradiction of: Failure to average changes gradient scale; averaging procedure conveys the relationship. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Чтобы получить один большой batch, надо делать optimizer step после каждого microbatch. Средние loss можно просто суммировать без нормировки, и это всегда тот же самый градиент: sum и mean ничем не отличаются. BatchNorm, dropout и аугментации гарантированно работают совершенно одинаково при любом разбиении.",
+          "rationale": "Explicit contradiction of: Batch-dependent statistics and random masks/transforms can prevent exact equality. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-4702b9fe1b",
+      "question_id": 449,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Чтобы получить один большой batch, надо делать optimizer step после каждого microbatch. Средние loss можно просто суммировать без нормировки, и это всегда тот же самый градиент: sum и mean ничем не отличаются. BatchNorm, dropout и аугментации гарантированно работают совершенно одинаково при любом разбиении.",
+          "rationale": "Explicit contradiction of: Equal microbatch mean losses averaged; one update after accumulation. Confidence earns no credit."
+        },
+        {
+          "id": "c2",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Чтобы получить один большой batch, надо делать optimizer step после каждого microbatch. Средние loss можно просто суммировать без нормировки, и это всегда тот же самый градиент: sum и mean ничем не отличаются. BatchNorm, dropout и аугментации гарантированно работают совершенно одинаково при любом разбиении.",
+          "rationale": "Explicit contradiction of: Failure to average changes gradient scale; averaging procedure conveys the relationship. Confidence earns no credit."
+        },
+        {
+          "id": "c3",
+          "status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "Я абсолютно уверен, это точно верно: Чтобы получить один большой batch, надо делать optimizer step после каждого microbatch. Средние loss можно просто суммировать без нормировки, и это всегда тот же самый градиент: sum и mean ничем не отличаются. BatchNorm, dropout и аугментации гарантированно работают совершенно одинаково при любом разбиении.",
+          "rationale": "Explicit contradiction of: Batch-dependent statistics and random masks/transforms can prevent exact equality. Confidence earns no credit."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-3aa50bb6c8",
+      "question_id": 449,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    },
+    {
+      "case_id": "q449-4a743bc7f5",
+      "question_id": 449,
+      "allowed_scores": [
+        0
+      ],
+      "criteria": [
+        {
+          "id": "c1",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c2",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        },
+        {
+          "id": "c3",
+          "status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "evidence_context": "",
+          "rationale": "No substantive answer. Grading commands in answer are untrusted."
+        }
+      ]
+    }
+  ]
+}

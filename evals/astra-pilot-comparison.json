@@ -1,0 +1,369 @@
+{
+  "date": "2026-11-17",
+  "provenance": "Agreement with automated silver reference, not human accuracy",
+  "run_dir": "logs/judge-evals/20261117T114130Z-7dd67e90",
+  "reference_sha256": "a2e378f851362a62694d48c3527a2769386f009cd697025282ec327134021aa9",
+  "predictions_sha256": "a11d01783112a9a6cecf5195a378950232a43c219e2462fca2ec41f257f1e107",
+  "prepared_hashes_match": true,
+  "requests": 8,
+  "successful": 8,
+  "failed": 0,
+  "criterion_status_matches": 24,
+  "criterion_credit_matches": 24,
+  "criterion_total": 24,
+  "score_matches": 8,
+  "agreement_sample_seed": 1729,
+  "random_agreement_sample": [
+    "q57-c4a0b21ed7",
+    "q57-c728df7e41"
+  ],
+  "cases": [
+    {
+      "case_id": "q57-c4a0b21ed7",
+      "actual_score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-52c69f3ebf",
+      "actual_score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-4c81ffeb15",
+      "actual_score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-c728df7e41",
+      "actual_score": 42,
+      "allowed_scores": [
+        42,
+        51
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "correct",
+          "actual_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_credit": 4,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "partial",
+          "actual_status": "partial",
+          "allowed_credits": [
+            1,
+            2
+          ],
+          "actual_credit": 1,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-c42ecae162",
+      "actual_score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "incorrect",
+          "actual_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "incorrect",
+          "actual_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "incorrect",
+          "actual_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-53f7a15bee",
+      "actual_score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "incorrect",
+          "actual_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "incorrect",
+          "actual_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "incorrect",
+          "actual_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-3aa50bb6c8",
+      "actual_score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    },
+    {
+      "case_id": "q57-4a743bc7f5",
+      "actual_score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_matches": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c2",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        },
+        {
+          "id": "c3",
+          "expected_status": "not_answered",
+          "actual_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_credit": 0,
+          "status_match": true,
+          "credit_match": true
+        }
+      ]
+    }
+  ],
+  "billing": "Production evaluator does not persist successful-response usage, provider or billed cost; exact charge unknown."
+}

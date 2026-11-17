@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "phase": "prepared_no_api_requests",
+  "prepared_date": "2026-11-17",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "dataset": "evals\\mentor-draft-v1.json",
+  "split": "dev",
+  "repeats": 1,
+  "planned_requests": 8,
+  "case_ids": [
+    "q57-c4a0b21ed7",
+    "q57-52c69f3ebf",
+    "q57-4c81ffeb15",
+    "q57-c728df7e41",
+    "q57-c42ecae162",
+    "q57-53f7a15bee",
+    "q57-3aa50bb6c8",
+    "q57-4a743bc7f5"
+  ],
+  "question_ids": [
+    57
+  ],
+  "dataset_sha256": "52dfcbabe7589e445b3b8802c86add8099a3b3314cfa02ca074e953ca96c3fa9",
+  "prompt_version": "weighted-rubric-v1",
+  "prompt_sha256": "f51ff1569ef66b13a2d587eb0f1da5f502a0549b31b4d323bded30177d9c7eda",
+  "credit_rules_sha256": "ca5f0c5bbca1e54d182ed5667e4f56d73d97d7f85c5b8bdc60913aa82b5e84bb",
+  "evaluator_sha256": "f6c9eb2a2d4d4d9ab4280b36ab7d6f5abfaf594af7dc207bf8dc7d5cb3147d00",
+  "worksheet_sha256": "97073ec0cee8767cb4cc758d930be20e83894df0f89e4ba33f13c712af76d6c2",
+  "reference_provenance": "Automated Astra/Codex silver review, not human gold",
+  "fixed_price_assumed": false
+}

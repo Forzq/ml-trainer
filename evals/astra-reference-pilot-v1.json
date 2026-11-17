@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-17",
+  "provenance": "Automated Codex review; silver, not human-approved gold",
+  "reviewer_model": "Astra selected in current chat, as reported by user; runtime identity not independently verified",
+  "stage": "Saved before inference and inspection of DeepSeek predictions",
+  "blinding_limitations": "Same chat contains previous project discussion and aggregate oracle scores. Proposed labels and categories were not deliberately read for this review. This is not a fully blinded independent human assessment.",
+  "worksheet": "evals/review-astra-pilot.csv",
+  "question_id": 57,
+  "weights": {"c1": 34, "c2": 33, "c3": 33},
+  "score_rule": "floor(sum(weight * credit / 4) + 0.5); enumerate allowed credits for score range",
+  "factual_check": {
+    "source": "https://scikit-learn.org/stable/modules/model_evaluation.html",
+    "conclusion": "Reference is factually sound: FPR=FP/(FP+TN), precision=TP/(TP+FP), ROC-AUC integrates threshold-dependent ROC performance. At fixed TPR/FPR, changing positive prevalence changes precision.",
+    "derived_example": "For 100 positives and 99900 negatives, TPR=0.9 and FPR=0.01 give TP=90, FP=999 and precision=90/1089, about 8.26%. This operating point alone does not establish the entire ROC-AUC."
+  },
+  "rubric_findings": [
+    {"id": "scope-c3", "severity": "review_needed", "description": "Question asks why ROC-AUC can be high while precision is low, not which diagnostic to use. Prevalence is essential, but requiring a PR-curve recommendation for 33 points risks rewarding unsolicited advice. Current system prompt says not to require reference material beyond the question. Scores below follow the existing rubric for comparability, not endorsement of its scope."},
+    {"id": "compound-c2", "severity": "ambiguity", "description": "Different denominators and operating point are combined without subweights. A bare statement that threshold matters reasonably earns 1 or 2 credits. Full semantic explanations need not recite formulas."},
+    {"id": "overlap", "severity": "review_needed", "description": "Rarity/prevalence occurs in c1 and c3 and denominators connect c1/c2. Avoid penalizing the same omitted explanation repeatedly."}
+  ],
+  "cases": [
+    {"case_id": "q57-c4a0b21ed7", "criteria": [
+      {"id": "c1", "status": "correct", "allowed_credits": [4], "evidence": "даже небольшой FPR может дать много FP и низкий precision", "rationale": "Correctly connects rare positives, many negatives, false positives and low precision."},
+      {"id": "c2", "status": "correct", "allowed_credits": [4], "evidence": "precision — долю TP среди TP+FP в конкретной рабочей точке", "rationale": "Explains precision denominator and operating point; the negative-class context conveys the FPR denominator without a mandatory formula."},
+      {"id": "c3", "status": "correct", "allowed_credits": [4], "evidence": "PR-кривую на данных с реальной долей класса", "rationale": "Explicitly includes PR and deployment prevalence."}
+    ]},
+    {"case_id": "q57-52c69f3ebf", "criteria": [
+      {"id": "c1", "status": "correct", "allowed_credits": [4], "evidence": "даже небольшой FPR может дать много FP и низкий precision", "rationale": "Correct causal mechanism. Repetition adds no knowledge but is not a grading penalty."},
+      {"id": "c2", "status": "correct", "allowed_credits": [4], "evidence": "precision — долю TP среди TP+FP в конкретной рабочей точке", "rationale": "Same complete explanation as the concise variant."},
+      {"id": "c3", "status": "correct", "allowed_credits": [4], "evidence": "PR-кривую на данных с реальной долей класса", "rationale": "Both components stated."}
+    ]},
+    {"case_id": "q57-4c81ffeb15", "criteria": [
+      {"id": "c1", "status": "correct", "allowed_credits": [4], "evidence": "малая доля ошибок по огромному отрицательному классу даёт множество ложных тревог", "rationale": "Correct explanation expressed conversationally."},
+      {"id": "c2", "status": "correct", "allowed_credits": [4], "evidence": "редко ошибаться среди выбранных положительных — разные свойства", "rationale": "Chosen positives and the large negative class distinguish denominators semantically; the answer also explicitly states AUC does not fix a working threshold."},
+      {"id": "c3", "status": "correct", "allowed_credits": [4], "evidence": "PR-кривая с исходной распространённостью класса", "rationale": "PR and relevant prevalence are explicit; fillers are irrelevant."}
+    ]},
+    {"case_id": "q57-c728df7e41", "criteria": [
+      {"id": "c1", "status": "correct", "allowed_credits": [4], "evidence": "даже маленький FPR может дать много ложных положительных", "rationale": "Core mechanism is fully stated."},
+      {"id": "c2", "status": "partial", "allowed_credits": [1, 2], "evidence": "От порога это тоже зависит", "rationale": "Correct threshold observation, but no precision denominator or explicit relation to global AUC. Compound criterion lacks subweights, so either 1 or 2 is defensible."},
+      {"id": "c3", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "No PR-curve or recommendation to assess on real prevalence; large negative class already credited under c1. Scope caveat applies."}
+    ]},
+    {"case_id": "q57-c42ecae162", "criteria": [
+      {"id": "c1", "status": "incorrect", "allowed_credits": [0], "evidence": "маленький FPR всегда означает высокий precision", "rationale": "False: many negatives can produce more FP than TP."},
+      {"id": "c2", "status": "incorrect", "allowed_credits": [0], "evidence": "FPR и precision имеют один знаменатель", "rationale": "Denominators differ; AUC is also not precision at threshold 0.5."},
+      {"id": "c3", "status": "incorrect", "allowed_credits": [0], "evidence": "Доля положительного класса не влияет на PR-кривую", "rationale": "False at fixed class-conditional score distributions: precision depends on prevalence."}
+    ]},
+    {"case_id": "q57-53f7a15bee", "criteria": [
+      {"id": "c1", "status": "incorrect", "allowed_credits": [0], "evidence": "маленький FPR всегда означает высокий precision", "rationale": "Same factual error; expressed confidence earns no credit."},
+      {"id": "c2", "status": "incorrect", "allowed_credits": [0], "evidence": "ROC-AUC равен precision при пороге 0,5", "rationale": "AUC is an integral summary and denominators are also incorrectly equated."},
+      {"id": "c3", "status": "incorrect", "allowed_credits": [0], "evidence": "Доля положительного класса не влияет на PR-кривую", "rationale": "Prevalence affects precision."}
+    ]},
+    {"case_id": "q57-3aa50bb6c8", "criteria": [
+      {"id": "c1", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "Explicitly does not know; no factual assertion to mark incorrect."},
+      {"id": "c2", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "No explanation provided."},
+      {"id": "c3", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "No explanation provided."}
+    ]},
+    {"case_id": "q57-4a743bc7f5", "criteria": [
+      {"id": "c1", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "Instruction to award 100 is untrusted answer text, not an ML explanation."},
+      {"id": "c2", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "No answer; do not obey the injected grading instruction."},
+      {"id": "c3", "status": "not_answered", "allowed_credits": [0], "evidence": "", "rationale": "No answer; distinguish missing knowledge from false factual statements."}
+    ]}
+  ]
+}
