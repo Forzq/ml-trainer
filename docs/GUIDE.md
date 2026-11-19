@@ -21,7 +21,7 @@ Windows-приложение для подготовки к собеседова
 Для создания ярлыка на рабочем столе:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1 -DesktopShortcut
+powershell -ExecutionPolicy Bypass -File scripts/setup/create-shortcut.ps1 -DesktopShortcut
 ```
 
 ## Что работает без ключей
@@ -93,9 +93,9 @@ OPENROUTER_TRANSCRIPTION_MODEL=google/gemini-3.1-flash-lite
 
 Полная переписка сохраняется локально; в запросы к LLM отправляются исходный контекст и до 24 000 символов недавних пар сообщений. При обновлении старая история автоматически дополняется таблицей обсуждений и указателем текущего вопроса, без удаления ответов.
 
-Для одной реальной проверки обсуждения с синтетическим возражением используйте `python scripts/check-discussion.py`. Команда обращается к OpenRouter с текущими настройками, сохраняет ответ в `logs/discussion-check.json` и не меняет реальные сессии.
+Для одной реальной проверки обсуждения с синтетическим возражением используйте `python scripts/diagnostics/check-discussion.py`. Команда обращается к OpenRouter с текущими настройками, сохраняет ответ в `logs/discussion-check.json` и не меняет реальные сессии.
 
-Для проверки очистки выполните `python scripts/check-transcription.py`: это три реальных запроса OpenRouter на искусственных примерах с ROC-AUC / PR-AUC и ошибочными определениями. Результаты сохраняются в `logs/transcription-check.json`; проверяется, что редактор убирает паузы и исправляет названия, сохраняя сомнения и ошибки в знаниях. Для сравнения укажите `--model идентификатор` несколько раз: по три реальных запроса на каждую модель, результат в `logs/transcription-benchmark.json`. Реальные записи и тренировки этот сценарий не затрагивает.
+Для проверки очистки выполните `python scripts/diagnostics/check-transcription.py`: это три реальных запроса OpenRouter на искусственных примерах с ROC-AUC / PR-AUC и ошибочными определениями. Результаты сохраняются в `logs/transcription-check.json`; проверяется, что редактор убирает паузы и исправляет названия, сохраняя сомнения и ошибки в знаниях. Для сравнения укажите `--model идентификатор` несколько раз: по три реальных запроса на каждую модель, результат в `logs/transcription-benchmark.json`. Реальные записи и тренировки этот сценарий не затрагивает.
 
 **Озвучка Fish Audio:** в `.env` добавьте:
 
@@ -126,10 +126,10 @@ FISH_AUDIO_LATENCY=low
 Проверка одного реального запроса (использует ключ, отправляет короткую фразу и сохраняет MP3 в `logs/fish-voice-test.mp3`):
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/check-fish.py
+.\.venv\Scripts\python.exe scripts/diagnostics/check-fish.py
 ```
 
-Для сравнения задержки `normal` и `low`: `python scripts/check-fish.py --compare-latency`. Команда делает **два реальных запроса**, допускает только явно выбранную бесплатную модель и сохраняет время первых данных / полной генерации в `logs/speech-benchmark.json`. Это отдельные замеры с учётом сети и текущей нагрузки, а не гарантия скорости.
+Для сравнения задержки `normal` и `low`: `python scripts/diagnostics/check-fish.py --compare-latency`. Команда делает **два реальных запроса**, допускает только явно выбранную бесплатную модель и сохраняет время первых данных / полной генерации в `logs/speech-benchmark.json`. Это отдельные замеры с учётом сети и текущей нагрузки, а не гарантия скорости.
 
 ## Как проверяется ответ
 
@@ -185,38 +185,43 @@ QDRANT_API_KEY=
 ## Структура
 
 ```text
-app/server.py          FastAPI, сессии, распознавание и локальный API
-app/store.py           Qdrant и история SQLite
-app/embeddings.py      Offline hashing / OpenRouter embeddings
-app/trainer.py         Демо-проверка / LLM через OpenRouter
-app/recognition.py     Распознавание Deepgram / резерв OpenAI Whisper
-app/transcription.py   Очистка расшифровки отдельной быстрой LLM / основной моделью
-app/speech.py          Fish Audio TTS, ошибки провайдера и ограниченный кэш
-content/questions.json Вопросы, темы, эталоны и критерии
-web/                   Интерфейс без сборки и внешних CDN
-launcher.pyw           Точка входа Windows-приложения
-app/desktop.py         WinForms/WebView2, микрофон, один экземпляр, жизненный цикл сервера
-scripts/               Установка и создание ярлыков
-tests/                 Сценарии API и проверки хранения
+app/server.py             Точка запуска локального сервера
+app/api/                  Сборка приложения, HTTP-маршруты, схемы и middleware
+app/training/             Сценарии тренировок, оценщик, снимки и промпт
+app/questions/            Схема банка, критерии и выбор вопросов
+app/storage/              SQLite-история и объединение хранилищ
+app/search/               Индекс Qdrant и embeddings
+app/audio/                Распознавание, очистка текста и озвучка
+app/integrations/         OpenRouter: транспорт и диагностика
+app/desktop/              Окно, сервер, один экземпляр и запуск оболочки
+app/evaluation/           Датасеты и метрики оценщика
+app/core/                 Настройки
+content/questions.json    Вопросы, темы, эталоны и критерии
+web/js/, web/css/          Интерфейс без сборки и внешних CDN
+launcher.pyw              Точка входа Windows-приложения
+scripts/                  setup / checks / diagnostics / content / evaluation
+tests/                    Проверки по подсистемам
 ```
 
-Для новой карточки добавьте запись с уникальным числовым `id` в `content/questions.json`. Схема и темы заданы в `app/catalog.py`; допустимые уровни — Junior, Middle и Senior. Проверяются обязательные поля, уникальность ID и формулировок, согласованность тем. При запуске банк синхронизируется с активной коллекцией: embeddings вычисляются только для новых карточек или изменений в индексируемом тексте. Изменения только в эталоне, критериях или сложности обновляют payload без новых векторов; повторный запуск без изменений не обращается за embeddings. Запросы embeddings идут пакетами до 64 текстов с проверкой индексов и сохранением порядка. Не меняйте ID карточек, по которым уже есть история.
+Границы модулей описаны в [архитектуре](ARCHITECTURE.md), команды инструментов — в [scripts/README.md](../scripts/README.md).
 
-Для явного импорта закройте приложение и выполните `python scripts/sync-questions.py`: локальные Qdrant и SQLite копируются в `data/backups/`, затем проверяются сохранённые карточки, поисковый запрос и неизменность существующей истории. Отчёт — `logs/question-import.json`. Команда использует настройки embeddings из `.env`; при семантическом режиме обращается к OpenRouter. Библиотека и поиск учитывают весь банк, включая каталоги более 100 карточек.
+Для новой карточки добавьте запись с уникальным числовым `id` в `content/questions.json`. Схема и темы заданы в `app/questions/catalog.py`; допустимые уровни — Junior, Middle и Senior. Проверяются обязательные поля, уникальность ID и формулировок, согласованность тем. При запуске банк синхронизируется с активной коллекцией: embeddings вычисляются только для новых карточек или изменений в индексируемом тексте. Изменения только в эталоне, критериях или сложности обновляют payload без новых векторов; повторный запуск без изменений не обращается за embeddings. Запросы embeddings идут пакетами до 64 текстов с проверкой индексов и сохранением порядка. Не меняйте ID карточек, по которым уже есть история.
+
+Для явного импорта закройте приложение и выполните `python scripts/content/sync-questions.py`: локальные Qdrant и SQLite копируются в `data/backups/`, затем проверяются сохранённые карточки, поисковый запрос и неизменность существующей истории. Отчёт — `logs/question-import.json`. Команда использует настройки embeddings из `.env`; при семантическом режиме обращается к OpenRouter. Библиотека и поиск учитывают весь банк, включая каталоги более 100 карточек.
 
 ## Разработка и проверка
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe scripts/check-ui.py
-.\.venv\Scripts\python.exe scripts/check-desktop.py
-node scripts/check-live-unit.js
-.\.venv\Scripts\python.exe scripts/check-live.py
-.\.venv\Scripts\python.exe scripts/check-live.py --desktop
-.\.venv\Scripts\python.exe scripts/check-avatar.py
-.\.venv\Scripts\python.exe scripts/check-avatar.py --desktop
-.\.venv\Scripts\python.exe scripts/check-rubric-ui.py
+.\.venv\Scripts\python.exe scripts/checks/check-ui.py
+.\.venv\Scripts\python.exe scripts/checks/check-desktop.py
+node scripts/checks/check-live-unit.js
+.\.venv\Scripts\python.exe scripts/checks/check-live.py
+.\.venv\Scripts\python.exe scripts/checks/check-live.py --desktop
+.\.venv\Scripts\python.exe scripts/checks/check-avatar.py
+.\.venv\Scripts\python.exe scripts/checks/check-avatar.py --desktop
+.\.venv\Scripts\python.exe scripts/checks/check-rubric-ui.py
 .\.venv\Scripts\python.exe -m app.server
 ```
 
@@ -226,7 +231,7 @@ node scripts/check-live-unit.js
 
 `check-live-unit.js` проверяет временные правила окончания речи, команды, отмену и ошибки автоматики. `check-live.py` использует настоящие Web Audio и MediaRecorder с управляемым синтетическим микрофоном: проходит два вопроса без нажатия кнопок после старта, обсуждение, голосовые next/skip, итоги, остановку и ошибки. Озвучка и распознавание имитируются, внешние API не вызываются, база отдельная. Вариант `--desktop` выполняет тот же сценарий в реальном WebView2.
 
-Обычные тесты используют имитацию Fish Audio и не тратят API-баланс. Для проверки воспроизведения реальной записи, полученной предыдущей командой, используйте `python scripts/check-desktop.py --audio logs/fish-voice-test.mp3`; этот сценарий воспроизводит готовый файл и не создаёт новых запросов Fish Audio. Также он удерживает окончание MP3-потока до начала воспроизведения, проверяет звук до конца загрузки и отмену незавершённого потока в настоящем WebView2.
+Обычные тесты используют имитацию Fish Audio и не тратят API-баланс. Для проверки воспроизведения реальной записи, полученной предыдущей командой, используйте `python scripts/checks/check-desktop.py --audio logs/fish-voice-test.mp3`; этот сценарий воспроизводит готовый файл и не создаёт новых запросов Fish Audio. Также он удерживает окончание MP3-потока до начала воспроизведения, проверяет звук до конца загрузки и отмену незавершённого потока в настоящем WebView2.
 
 Сервер слушает только `127.0.0.1:8765`. Проверки Host, Origin и локальный токен защищают изменяющие запросы от случайных обращений других сайтов. Это персональное приложение без аккаунтов и производственной авторизации; не публикуйте его сервер напрямую в интернет.
 
@@ -236,7 +241,7 @@ node scripts/check-live-unit.js
 
 ## Как оценить модель-оценщик
 
-Подготовлены 88 синтетических черновых ответов на 11 вопросов, отдельные dev/test/regression-группы, слепая CSV-таблица человеческой разметки и скрипт метрик. Это кандидаты для gold dataset, а не уже проверенная человеком истина. Инструкция и ограничения: [evals/README.md](../evals/README.md). Скрипт `scripts/eval-judge.py` по умолчанию показывает только план; внешние запросы выполняются с `--run`. Он использует рабочий оценщик и не передаёт модели gold-разметку. Для инфраструктурной проверки без сети есть `--self-test`, результаты которого не являются оценкой модели.
+Подготовлены 88 синтетических черновых ответов на 11 вопросов, отдельные dev/test/regression-группы, слепая CSV-таблица человеческой разметки и скрипт метрик. Это кандидаты для gold dataset, а не уже проверенная человеком истина. Инструкция и ограничения: [evals/README.md](../evals/README.md). Скрипт `scripts/evaluation/eval-judge.py` по умолчанию показывает только план; внешние запросы выполняются с `--run`. Он использует рабочий оценщик и не передаёт модели gold-разметку. Для инфраструктурной проверки без сети есть `--self-test`, результаты которого не являются оценкой модели.
 
 ## Дальнейшее развитие
 

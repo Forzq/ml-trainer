@@ -103,16 +103,43 @@ if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 | `evals/` | Наборы ответов и проверка качества оценщика |
 | `tests/`, `scripts/` | Тесты, проверки интерфейса и инструменты разработки |
 
-HTTP-маршруты находятся в `app/server.py`, чтение снимков тренировок и истории обсуждений — в `app/sessions.py`. `app/trainer.py` формирует задания оценщику и диалог, `app/model_client.py` выполняет запросы OpenRouter и безопасно диагностирует ответы. HTML-компоненты вынесены в `web/views.js`; управление интерфейсом остаётся в `web/app.js`.
+Код сгруппирован по ответственности:
+
+```text
+app/
+  api/             сборка приложения, HTTP-маршруты, схемы и защита запросов
+  training/        сценарии тренировок, оценщик и чтение снимков вопросов
+  questions/       схема банка, критерии и выбор вопросов
+  audio/           распознавание, редактирование расшифровки и озвучка
+  search/          embeddings и индекс Qdrant
+  storage/         SQLite-история и объединение хранилищ
+  integrations/    клиент OpenRouter и безопасная диагностика
+  desktop/         окно WebView2, управление сервером и одним экземпляром
+  evaluation/      датасеты и метрики качества оценщика
+  core/            настройки и корень проекта
+web/
+  js/              страницы, компоненты, аудио, аватар и состояние интерфейса
+  css/             стили
+  avatars/         локальные изображения персонажа
+scripts/
+  setup/           установка и ярлыки
+  checks/          автоматические проверки без платных API
+  diagnostics/     ручные проверки реальных провайдеров
+  content/         импорт и миграции банка вопросов
+  evaluation/      построение датасетов, разметка и прогоны оценщика
+tests/             тесты по подсистемам
+```
+
+`app/server.py` остаётся точкой запуска. Приложение собирается в `app/api/application.py`, сценарии тренировок получают зависимости явно через конструктор `TrainingService`. Подробности границ модулей — в [архитектуре](docs/ARCHITECTURE.md), команды инструментов — в [scripts/README.md](scripts/README.md).
 
 ## Проверка качества
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe scripts/check-ui.py
-.\.venv\Scripts\python.exe scripts/check-rubric-ui.py
-.\.venv\Scripts\python.exe scripts/check-live.py
+.\.venv\Scripts\python.exe scripts/checks/check-ui.py
+.\.venv\Scripts\python.exe scripts/checks/check-rubric-ui.py
+.\.venv\Scripts\python.exe scripts/checks/check-live.py
 ```
 
 Автоматические проверки используют изолированные данные и имитации провайдеров, без платных запросов. Для запуска UI-проверок нужен установленный Microsoft Edge. Дополнительные сценарии для desktop-оболочки и аватара описаны в [руководстве](docs/GUIDE.md#разработка-и-проверка).

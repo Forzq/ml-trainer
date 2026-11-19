@@ -1,0 +1,105 @@
+"""Training session transitions, answer evaluation and follow-up discussion."""
+import json
+import uuid
+import httpx
+from app.training.errors import TrainingError
+from app.questions.catalog import TOPICS
+from app.questions.selection import select_questions
+from app.integrations.openrouter import log_model_failure
+
+
+class TrainingService:
+    def __init__(self, store, reader, settings, lock, *, evaluate, discuss):
+        self.store = store
+        self.reader = reader
+        self.settings = settings
+        self.lock = lock
+        self.evaluate = evaluate
+        self.discuss = discuss
+
+    def new_session(self, body):
+        store = self.store
+        if body.topic not in ["all"] + [t["id"] for t in TOPICS]:
+            raise TrainingError(422, "Неизвестная тема.")
+        selected = store.search(topic=body.topic, level=body.level)
+        if not selected:
+            raise TrainingError(422, "Для выбранной темы и сложности пока нет вопросов.")
+        # Balance eligible topics and prefer less-practiced cards within each topic.
+        with store.connect() as db:
+            counts = dict(db.execute("SELECT question_id, COUNT(*) FROM attempts GROUP BY question_id"))
+            selected = select_questions(selected, counts, body.count)
+            session_id = str(uuid.uuid4())
+            profile = {"candidate_level": body.candidate_level, "specialization": next((t["name"] for t in TOPICS if t["id"] == body.topic), "Общий ML / Data Science")}
+            snapshots = {str(card["id"]): card for card in selected}
+            db.execute("INSERT INTO sessions(id,topic,question_ids,profile,question_snapshots) VALUES(?,?,?,?,?)",
+                       (session_id, body.topic, json.dumps([c["id"] for c in selected]), json.dumps(profile, ensure_ascii=False), json.dumps(snapshots, ensure_ascii=False)))
+        return self.reader.state(session_id)
+
+    def answer(self, session_id, body):
+        with self.lock:
+            state = self.reader.state(session_id)
+            if state["completed"]:
+                raise TrainingError(409, "Эта тренировка уже завершена.")
+            if state["reviewing"]:
+                raise TrainingError(409, "Ответ уже разобран. Можно обсудить его в чате или перейти к следующему вопросу.")
+            if body.question_id != state["question"]["id"]:
+                raise TrainingError(409, "Вопрос уже изменился. Обнови тренировку.")
+            text = body.answer.strip()
+            if not body.skip and not text:
+                raise TrainingError(422, "Напиши или запиши ответ.")
+            card = self.reader.card(session_id, body.question_id)
+            if body.skip:
+                result = {"score": 0, "feedback": "Ориентир для ответа: " + card["reference"],
+                          "covered": [], "missing": [c["label"] for c in card["criteria"]], "mode": "skipped"}
+            else:
+                try:
+                    result = self.evaluate(card, text, self.settings, profile=state["profile"])
+                except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+                    log_model_failure("evaluate", self.settings.model, body.question_id, error)
+                    raise TrainingError(502, "Модель не смогла проверить ответ. Проверь ключ, баланс и название модели. Ответ сохранён в поле ввода; можно повторить запрос.")
+            with self.store.connect() as db:
+                db.execute("INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES(?,?,?,?,?,?)",
+                           (session_id, body.question_id, text, json.dumps(result, ensure_ascii=False), result["score"], result["mode"]))
+            return {"evaluation": result, "session": self.reader.state(session_id)}
+
+    def discussion(self, session_id, body):
+        with self.lock:
+            state = self.reader.state(session_id)
+            if state["completed"] or not state["reviewing"]:
+                raise TrainingError(409, "Обсуждение доступно после разбора текущего ответа.")
+            if state["question"]["id"] != body.question_id:
+                raise TrainingError(409, "Вопрос уже изменился. Обнови тренировку.")
+            text = body.message.strip()
+            if not text:
+                raise TrainingError(422, "Напиши или запиши уточнение.")
+            attempt = next(item for item in state["attempts"] if item["question"]["id"] == body.question_id)
+            try:
+                result = self.discuss(self.reader.card(session_id, body.question_id), attempt, text, self.settings, profile=state["profile"])
+            except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+                log_model_failure("discuss", self.settings.model, body.question_id, error)
+                raise TrainingError(502, "Тренер не смог ответить. Сообщение осталось в поле ввода; можно отправить ещё раз.")
+            with self.store.connect() as db:
+                db.execute("INSERT INTO discussions(session_id,question_id,message,reply,mode) VALUES(?,?,?,?,?)",
+                           (session_id, body.question_id, text, result["reply"], result["mode"]))
+            return {"discussion": result, "session": self.reader.state(session_id)}
+
+    def next_question(self, session_id, body):
+        with self.lock:
+            state = self.reader.state(session_id)
+            if state["completed"] or not state["reviewing"]:
+                raise TrainingError(409, "Сначала ответь на текущий вопрос или пропусти его.")
+            if state["question"]["id"] != body.question_id:
+                raise TrainingError(409, "Вопрос уже изменился. Обнови тренировку.")
+            with self.store.connect() as db:
+                if state["current_index"] + 1 >= state["total"]:
+                    db.execute("UPDATE sessions SET completed_at=CURRENT_TIMESTAMP WHERE id=?", (session_id,))
+                else:
+                    db.execute("UPDATE sessions SET current_index=current_index+1 WHERE id=?", (session_id,))
+            return self.reader.state(session_id)
+
+    def finish(self, session_id):
+        with self.lock:
+            self.reader.state(session_id)
+            with self.store.connect() as db:
+                db.execute("UPDATE sessions SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP) WHERE id=?", (session_id,))
+            return self.reader.state(session_id)

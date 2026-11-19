@@ -40,7 +40,7 @@
 Импортировать законченную таблицу в новый файл:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/review-judge-gold.py import --sheet evals/review-dev.csv --reviewer "Имя разметчика" --out evals/mentor-reviewed-v1.json
+.\.venv\Scripts\python.exe scripts/evaluation/review-judge-gold.py import --sheet evals/review-dev.csv --reviewer "Имя разметчика" --out evals/mentor-reviewed-v1.json
 ```
 
 Исходник и таблица не перезаписываются. `approved` означает, что человек явно заполнил разметку и основания; код не может удостоверить квалификацию человека или факт независимого консенсуса. История повторной разметки сохраняется. Изменение вопроса, рубрики или текста ответа после разметки обнаруживается по отпечатку.
@@ -48,8 +48,8 @@
 Экспортировать остальные dev-примеры или отдельный test:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/review-judge-gold.py export --sheet evals/review-dev-all.csv --split dev
-.\.venv\Scripts\python.exe scripts/review-judge-gold.py export --sheet evals/review-test.csv --split test
+.\.venv\Scripts\python.exe scripts/evaluation/review-judge-gold.py export --sheet evals/review-dev-all.csv --split dev
+.\.venv\Scripts\python.exe scripts/evaluation/review-judge-gold.py export --sheet evals/review-test.csv --split test
 ```
 
 ## 2. Запустить один и тот же оценщик на фиксированных данных
@@ -57,27 +57,27 @@
 По умолчанию команда только показывает план и **не вызывает API**:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/eval-judge.py --dataset evals/mentor-reviewed-v1.json
+.\.venv\Scripts\python.exe scripts/evaluation/eval-judge.py --dataset evals/mentor-reviewed-v1.json
 ```
 
 Запуск человечески размеченных dev-примеров через OpenRouter:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/eval-judge.py --dataset evals/mentor-reviewed-v1.json --split dev --repeats 3 --run
+.\.venv\Scripts\python.exe scripts/evaluation/eval-judge.py --dataset evals/mentor-reviewed-v1.json --split dev --repeats 3 --run
 ```
 
-`--run` отправляет выбранные условия, критерии, ответы и профиль во внешний OpenRouter с ключом из `.env`. Gold-оценки, основания разметчика и категории примеров в запрос не включаются. Используется настоящий `app.trainer.evaluate()` с текущим рабочим промптом и расчётом баллов; демо-режим не допускается. История тренировок и Qdrant не читаются и не изменяются.
+`--run` отправляет выбранные условия, критерии, ответы и профиль во внешний OpenRouter с ключом из `.env`. Gold-оценки, основания разметчика и категории примеров в запрос не включаются. Используется настоящий `app.training.evaluator.evaluate()` с текущим рабочим промптом и расчётом баллов; демо-режим не допускается. История тренировок и Qdrant не читаются и не изменяются.
 
 Другую модель можно проверить тем же способом:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/eval-judge.py --dataset evals/mentor-reviewed-v1.json --model "provider/model-id" --split dev --repeats 3 --run
+.\.venv\Scripts\python.exe scripts/evaluation/eval-judge.py --dataset evals/mentor-reviewed-v1.json --model "provider/model-id" --split dev --repeats 3 --run
 ```
 
 Для технической пробы на синтетических предложениях, ещё не ставших gold, нужен явный флаг:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/eval-judge.py --include-drafts --split regression --limit 2 --run
+.\.venv\Scripts\python.exe scripts/evaluation/eval-judge.py --include-drafts --split regression --limit 2 --run
 ```
 
 Такая проба отмечается `draft_exploratory`: совпадение с автоматически предложенными ответами не доказывает правильность оценщика. Начни с небольшого `--limit`, затем проверь число запросов: количество выбранных ответов × repeats. По умолчанию вызовы последовательные; автоматических повторов платных запросов нет. После каждого примера сохраняется результат. При Ctrl+C отчёт помечается неполным.
@@ -85,7 +85,7 @@
 Для проверки только инфраструктуры, без модели и API:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/eval-judge.py --include-drafts --split regression --self-test
+.\.venv\Scripts\python.exe scripts/evaluation/eval-judge.py --include-drafts --split regression --self-test
 ```
 
 `--self-test` использует локальный oracle, повторяющий предложенную разметку. Его идеальные метрики закономерны и **не являются измерением качества DeepSeek, Gemini или любой другой модели**.

@@ -1,0 +1,10 @@
+"use strict";
+
+function renderResults() {
+  const session = state.session;
+  const assessed = session.attempts.filter((attempt) => attempt.mode === "ai");
+  const skipped = session.attempts.filter((attempt) => attempt.mode === "skipped").length;
+  const average = assessed.length ? Math.round(assessed.reduce((sum, attempt) => sum + attempt.score, 0) / assessed.length) : null;
+  setPage(`<div class="results"><div class="result-hero"><div class="result-symbol">✳</div><h1>Практика завершена</h1><p>Теперь ты чуть лучше знаешь, на что обратить внимание.</p><div class="result-numbers"><div><strong>${session.answered}</strong><small>вопросов разобрано</small></div><div><strong>${average === null ? "—" : average + "%"}</strong><small>${average === null ? "AI-оценки пока нет" : "средняя AI-оценка"}</small></div><div><strong>${skipped}</strong><small>пропущено</small></div></div><p>${assessed.length ? "Оценка модели — ориентир для повторения. Главная ценность — в разборе." : "Демо-проверка не оценивает понимание. Посмотри объяснения и повтори сложные вопросы."}</p></div><div class="section-heading"><h2>Что разобрали</h2></div>${session.attempts.length ? session.attempts.map((attempt) => `<details class="result-row"><summary>${escapeHTML(attempt.question.title)}<span class="tag">${attempt.mode === "ai" ? attempt.score + "%" : attempt.mode === "skipped" ? "Пропущен" : "Демо"}</span></summary><p><strong>Твой ответ:</strong> ${escapeHTML(attempt.answer || "Вопрос пропущен")}</p><p>${escapeHTML(attempt.feedback)}</p>${rubricHTML(attempt)}${attempt.discussion?.length ? `<div class="history-discussion">${discussionHTML(attempt)}</div>` : ""}</details>`).join("") : `<p class="helper">В этот раз ответов не было. Можно начать снова, когда будет удобно.</p>`}<div class="result-actions"><button class="button primary" data-action="start">Ещё одна тренировка ${icon("arrow")}</button><button class="button" data-action="home">На главную</button></div></div>`, "Итоги");
+}
+
