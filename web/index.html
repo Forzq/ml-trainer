@@ -11,9 +11,11 @@
   <link rel="stylesheet" href="/static/themes.css">
   <link rel="stylesheet" href="/static/avatar.css">
   <link rel="stylesheet" href="/static/rubric.css">
+  <link rel="stylesheet" href="/static/polish.css">
   <script src="/static/portrait.js" defer></script>
   <script src="/static/avatar.js" defer></script>
   <script src="/static/live.js" defer></script>
+  <script src="/static/views.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -36,32 +38,29 @@
   </svg>
 
   <aside class="sidebar">
-    <a class="brand" href="#home" aria-label="ML Trainer — главная"><span class="brand-mark">m<span>l</span></span><span>ML Trainer<small>пространство практики</small></span></a>
-    <div class="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+    <a class="brand" href="#home" aria-label="ML Trainer — главная"><span class="brand-mark">m<span>l</span></span><span>ML Trainer<small>практика ML-интервью</small></span></a>
     <nav aria-label="Основная навигация">
-      <a class="nav-link active" href="#home" data-page="home"><svg><use href="#i-grid"/></svg>Обзор<span class="nav-dot"></span></a>
-      <a class="nav-link" href="#library" data-page="library"><svg><use href="#i-cards"/></svg>Банк вопросов<span id="nav-count" class="nav-count">6</span></a>
-      <a class="nav-link" href="#history" data-page="history"><svg><use href="#i-clock"/></svg>История</a>
+      <a class="nav-link active" href="#home" data-page="home" aria-label="Обзор" title="Обзор"><svg><use href="#i-grid"/></svg><span class="nav-text">Обзор</span><span class="nav-dot"></span></a>
+      <a class="nav-link" href="#library" data-page="library" aria-label="Банк вопросов" title="Банк вопросов"><svg><use href="#i-cards"/></svg><span class="nav-text">Банк вопросов</span><span id="nav-count" class="nav-count">—</span></a>
+      <a class="nav-link" href="#history" data-page="history" aria-label="История" title="История"><svg><use href="#i-clock"/></svg><span class="nav-text">История</span></a>
     </nav>
-    <div class="sidebar-tip"><span class="tiny-spark">✳</span><strong>Практика важнее идеала</strong><p>Объясни своими словами.<br>Разберёмся в остальном вместе.</p><span class="tip-line"></span></div>
     <div class="sidebar-bottom">
-      <button class="nav-link" id="settings-button"><svg><use href="#i-settings"/></svg>Подключения</button>
-      <div class="local-status"><span class="status-dot"></span><span>Локальное приложение<small>Версия 0.1 · MVP</small></span></div>
+      <button class="nav-link" id="settings-button" aria-label="Подключения" title="Подключения"><svg><use href="#i-settings"/></svg><span class="nav-text">Подключения</span></button>
     </div>
   </aside>
 
   <main class="main">
-    <header class="topbar"><div class="breadcrumb">Твоё пространство <span>/</span> <strong id="page-label">Обзор</strong></div><div class="topbar-right"><button class="speech-indicator" id="speech-indicator" type="button" aria-label="Остановить озвучку" title="Остановить озвучку" hidden></button><span class="demo-badge" id="mode-badge">Демо-режим</span><details class="voice-controls" id="voice-controls"><summary aria-label="Настройки голоса" title="Настройки голоса"><svg aria-hidden="true"><use href="#i-sound"/></svg><span id="voice-volume-summary">75%</span></summary><div class="voice-controls-panel"><label class="voice-volume-label" for="voice-volume">Громкость голоса <output id="voice-volume-output" for="voice-volume">75%</output></label><input id="voice-volume" type="range" min="0" max="100" step="1" value="75" aria-label="Громкость голоса"><label class="voice-tone-label" for="voice-tone">Интонация</label><select id="voice-tone" aria-describedby="voice-tone-hint"><option value="natural">Естественная</option><option value="calm">Спокойная</option><option value="very_calm_slow">Очень спокойно и медленно</option><option value="friendly">Дружелюбная</option><option value="excited">Энергичная</option><option value="soft">Мягкая</option><option value="whisper">Шёпот</option></select><small class="voice-tone-hint" id="voice-tone-hint"></small><button class="button small full voice-tone-preview" data-action="preview-tone" type="button">Послушать интонацию</button><button class="button small full avatar-menu-button" data-action="avatar-settings" type="button">Аватар тренера</button><label class="auto-speech-label"><input id="auto-speech" type="checkbox" checked><span>Озвучивать ответы автоматически</span></label><p>Тренер заговорит, когда разбор будет готов. Динамик рядом с сообщением — чтобы послушать ещё раз.</p></div></details><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Включить светлую тему" title="Включить светлую тему" aria-pressed="true"><svg aria-hidden="true"><use href="#i-sun"/></svg></button><span class="avatar">Я</span></div></header>
+    <header class="topbar"><div class="breadcrumb">ML Trainer <span>/</span> <strong id="page-label">Обзор</strong></div><div class="topbar-right"><button class="speech-indicator" id="speech-indicator" type="button" aria-label="Остановить озвучку" title="Остановить озвучку" hidden></button><span class="demo-badge" id="mode-badge" hidden></span><details class="voice-controls" id="voice-controls"><summary aria-label="Настройки голоса" title="Настройки голоса"><svg aria-hidden="true"><use href="#i-sound"/></svg><span id="voice-volume-summary">75%</span></summary><div class="voice-controls-panel"><label class="voice-volume-label" for="voice-volume">Громкость голоса <output id="voice-volume-output" for="voice-volume">75%</output></label><input id="voice-volume" type="range" min="0" max="100" step="1" value="75" aria-label="Громкость голоса"><label class="voice-tone-label" for="voice-tone">Интонация</label><select id="voice-tone" aria-describedby="voice-tone-hint"><option value="natural">Естественная</option><option value="calm">Спокойная</option><option value="very_calm_slow">Очень спокойно и медленно</option><option value="friendly">Дружелюбная</option><option value="excited">Энергичная</option><option value="soft">Мягкая</option><option value="whisper">Шёпот</option></select><small class="voice-tone-hint" id="voice-tone-hint"></small><button class="button small full voice-tone-preview" data-action="preview-tone" type="button">Послушать интонацию</button><button class="button small full avatar-menu-button" data-action="avatar-settings" type="button">Аватар тренера</button><label class="auto-speech-label"><input id="auto-speech" type="checkbox" checked><span>Озвучивать ответы автоматически</span></label></div></details><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Включить светлую тему" title="Включить светлую тему" aria-pressed="true"><svg aria-hidden="true"><use href="#i-sun"/></svg></button></div></header>
     <div id="app-content" class="page-content"><div class="loading-state"><span class="spinner"></span><p>Готовим пространство для практики…</p></div></div>
-    <footer class="footer"><span>Маленькие шаги. Глубокое понимание.</span><span><span class="status-dot"></span> Сохраняется на этом компьютере</span></footer>
+    <footer class="footer"><span>ML Trainer</span><span>История сохраняется автоматически</span></footer>
   </main>
 
-  <dialog id="settings-dialog" class="modal"><div class="modal-heading"><div><span class="eyebrow">НАСТРОЙКИ ПРАКТИКИ</span><h2>Подключения</h2></div><button class="icon-button" id="close-settings" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="settings-content"></div></dialog>
+  <dialog id="settings-dialog" class="modal"><div class="modal-heading"><div><h2>Подключения</h2></div><button class="icon-button" id="close-settings" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="settings-content"></div></dialog>
   <dialog id="start-dialog" class="modal">
     <div class="modal-heading"><div><span class="eyebrow">НОВАЯ ТРЕНИРОВКА</span><h2>С чего начнём?</h2></div><button class="icon-button" id="close-start" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
     <form id="start-form">
       <label class="field-label" for="session-mode">Режим</label>
-      <select id="session-mode"><option value="manual">Обычная тренировка</option><option value="live">Live Training · полностью голосом</option></select>
+      <select id="session-mode"><option value="manual">Текст и голос</option><option value="live">Голосовой диалог</option></select>
       <div id="live-options" class="live-options" hidden>
         <p class="helper">Тренер сам озвучивает вопрос, слушает ответ и даёт разбор. После разбора — 6 секунд на уточнение, затем следующий вопрос. Разрешение микрофона понадобится при запуске.</p>
         <label class="field-label" for="live-silence">Пауза до отправки ответа</label>
@@ -74,12 +73,11 @@
       <label class="field-label" for="session-level">Сложность вопросов</label><select id="session-level"><option value="all">Все уровни</option><option value="Junior">Junior</option><option value="Middle">Middle</option><option value="Senior">Senior</option></select>
       <p class="helper">Уровень собеседования задаёт глубину разбора. Для повторения основ можно оставить сложность «Все уровни».</p>
       <label class="field-label" for="session-count">Количество вопросов</label><select id="session-count"><option value="2">2 вопроса · короткая практика</option><option value="4" selected>4 вопроса · обычная практика</option><option value="6">6 вопросов · расширенная практика</option><option value="10">10 вопросов</option><option value="20">20 вопросов</option></select>
-      <p class="helper">Если подходящих вопросов меньше, возьмём все доступные. Чаще будут попадаться карточки, которые ты ещё не проходил.</p>
       <button class="button primary full" type="submit">Начать тренировку <svg><use href="#i-arrow"/></svg></button>
     </form>
   </dialog>
   <dialog id="avatar-dialog" class="modal avatar-modal" aria-labelledby="avatar-dialog-title">
-    <div class="modal-heading"><div><span class="eyebrow">ТВОЙ ПЕРСОНАЖ</span><h2 id="avatar-dialog-title">Аватар тренера</h2></div><button class="icon-button avatar-close" aria-label="Закрыть аватар">×</button></div>
+    <div class="modal-heading"><div><h2 id="avatar-dialog-title">Аватар тренера</h2></div><button class="icon-button avatar-close" aria-label="Закрыть аватар">×</button></div>
     <label class="avatar-visible-label"><input type="checkbox" id="avatar-visible" checked> Показывать аватар в тренировке</label>
     <label class="field-label" for="avatar-preset">Персонаж</label><select id="avatar-preset"><option value="marin">Ментор по ML</option><option value="custom">Свои картинки</option></select>
     <div id="avatar-preset-info" class="avatar-preset-info" hidden><p>Ментор по ML</p><small>Один образ, моргание, реакции и движение рта во время речи.</small></div>
