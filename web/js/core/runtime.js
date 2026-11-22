@@ -29,9 +29,16 @@ function formatDate(value) {
 }
 
 function setPage(html, label) {
-  $("#app-content").innerHTML = html;
+  const content = $("#app-content");
+  if (typeof html === "string") content.innerHTML = html;
+  else content.replaceChildren(html);
   $("#page-label").textContent = label;
-  document.querySelectorAll(".nav-link[data-page]").forEach((link) => link.classList.toggle("active", link.dataset.page === state.page));
+  document.querySelectorAll(".nav-link[data-page]").forEach((link) => {
+    const active = link.dataset.page === state.page;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
   syncVoiceControls();
 }
 

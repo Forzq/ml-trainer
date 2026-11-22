@@ -34,7 +34,6 @@
 .modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
 .modal select { font-size: 13px; }
 #start-form > .button { margin-top: 24px; }
-.settings-intro { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .connection { gap: 14px; }
 .connection > div { min-width: 0; }
 .connection strong { font-size: 13px; }

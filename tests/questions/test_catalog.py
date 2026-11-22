@@ -5,24 +5,26 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.questions.catalog import TOPICS, load_cards
+from app.questions.catalog import MOCK_INTERVIEW_TAG, TOPICS, load_cards
+from app.search.embeddings import Embeddings
 from app.server import create_app
 from app.storage.store import Store
 from test_app import settings_at, authenticated
 
 
-def test_bank_has_500_unique_complete_questions_and_preserves_original_ids():
+def test_bank_preserves_the_original_ids_and_topic_distribution():
     cards = load_cards()
-    assert len(cards) == 500
-    assert {card["id"] for card in cards} == set(range(1, 501))
-    assert Counter(card["topic_id"] for card in cards) == {topic["id"]: 100 for topic in TOPICS}
-    for topic in (item["id"] for item in TOPICS):
-        selected = [card for card in cards if card["topic_id"] == topic]
+    base = [card for card in cards if card["id"] <= 500]
+    assert {card["id"] for card in base} == set(range(1, 501))
+    original_topics = ("classical_ml", "data_science", "nlp", "cv", "dl")
+    assert Counter(card["topic_id"] for card in base) == dict.fromkeys(original_topics, 100)
+    for topic in original_topics:
+        selected = [card for card in base if card["topic_id"] == topic]
         assert Counter(card["level"] for card in selected) == {"Junior": 40, "Middle": 40, "Senior": 20}
     assert all(2 <= len(card["criteria"]) <= 6 and sum(c["max_points"] for c in card["criteria"]) == 100 for card in cards)
     assert [card["title"] for card in cards[:6]] == ["Переобучение", "Разделение данных", "Precision и recall",
                                                     "Дисбаланс классов", "Линейная регрессия", "Регуляризация"]
-    assert len({card["question"].casefold() for card in cards}) == 500
+    assert len({card["question"].casefold() for card in cards}) == len(cards)
 
 
 @pytest.mark.parametrize("failure", ["duplicate_id", "duplicate_question", "bad_level", "bad_topic", "missing_reference"])
@@ -45,14 +47,18 @@ def test_invalid_catalog_is_rejected(tmp_path, failure):
 
 
 def test_topic_and_level_filters_apply_to_search_and_sessions(tmp_path):
+    cards = load_cards()
     with TestClient(create_app(settings_at(tmp_path))) as client:
         config = client.get("/api/config").json()
         assert [topic["id"] for topic in config["topics"]] == [topic["id"] for topic in TOPICS]
-        assert config["topics"][0]["levels"] == {"Junior": 40, "Middle": 40, "Senior": 20}
-        assert [topic["count"] for topic in config["topics"]] == [100, 100, 100, 100, 100]
+        topic_counts = Counter(card["topic_id"] for card in cards)
+        level_counts = Counter((card["topic_id"], card["level"]) for card in cards)
+        assert {topic["id"]: topic["count"] for topic in config["topics"]} == topic_counts
+        assert topic_counts["ml_system_design"] > 0
         headers = authenticated(client)
         for topic in (item["id"] for item in TOPICS):
-            for level, count in [("Junior", 40), ("Middle", 40), ("Senior", 20)]:
+            for level in ("Junior", "Middle", "Senior"):
+                count = level_counts[topic, level]
                 rows = client.get("/api/cards", params={"topic": topic, "level": level}).json()["cards"]
                 assert len(rows) == count and all(card["level"] == level and card["topic_id"] == topic for card in rows)
                 assert all("reference" not in card and "criteria" not in card for card in rows)
@@ -60,14 +66,31 @@ def test_topic_and_level_filters_apply_to_search_and_sessions(tmp_path):
                 assert found and all(card["level"] == level and card["topic_id"] == topic for card in found)
                 state = client.post("/api/sessions", headers=headers,
                                     json={"topic": topic, "level": level, "count": 20}).json()
-                assert state["total"] == 20 and state["question"]["level"] == level and state["question"]["topic_id"] == topic
+                session_size = min(20, count)
+                assert state["total"] == session_size and state["question"]["level"] == level and state["question"]["topic_id"] == topic
                 with client.app.state.store.connect() as db:
                     ids = json.loads(db.execute("SELECT question_ids FROM sessions WHERE id=?", (state["id"],)).fetchone()[0])
-                assert len(set(ids)) == 20
+                assert len(set(ids)) == session_size
                 assert all(client.app.state.store.by_id[question_id]["level"] == level for question_id in ids)
         assert client.post("/api/sessions", headers=headers, json={"topic": "unknown"}).status_code == 422
         assert client.get("/api/cards", params={"topic": "unknown"}).json()["cards"] == []
         assert client.post("/api/sessions", headers=headers, json={"level": "Expert"}).status_code == 422
+
+
+def test_mock_interview_filter_uses_qdrant_payload_and_keeps_the_reference_private(tmp_path):
+    cards = load_cards()
+    expected = [card for card in cards if MOCK_INTERVIEW_TAG in card["tags"]]
+    assert any(card["id"] <= 500 for card in expected)
+    assert any(card["id"] > 500 for card in expected)
+    with patch("app.storage.store.load_cards", return_value=expected + [cards[1]]), TestClient(create_app(settings_at(tmp_path))) as client:
+        with patch.object(Embeddings, "encode", side_effect=AssertionError("An exact tag lookup should not call embeddings")):
+            rows = client.get("/api/cards", params={"q": " MOCK-INTERVIEW "}).json()["cards"]
+            filtered = client.get("/api/cards", params={"q": MOCK_INTERVIEW_TAG, "topic": "nlp", "level": "Middle"}).json()["cards"]
+        assert [row["id"] for row in rows] == sorted(card["id"] for card in expected)
+        assert [row["id"] for row in filtered] == sorted(card["id"] for card in expected if card["topic_id"] == "nlp" and card["level"] == "Middle")
+        assert all({"reference", "criteria", "mock_sources"}.isdisjoint(row) for row in rows)
+        persisted = client.app.state.store.search(MOCK_INTERVIEW_TAG)
+        assert all(row["mock_sources"] and row["reference"] for row in persisted)
 
 
 def test_pagination_beyond_100_and_unchanged_seed_does_not_reembed(tmp_path):
@@ -76,14 +99,14 @@ def test_pagination_beyond_100_and_unchanged_seed_does_not_reembed(tmp_path):
     with patch("app.storage.store.load_cards", return_value=expanded):
         store = Store(settings_at(tmp_path))
         try:
-            assert len(store.search()) == 535
-            assert len(store.search("модель")) == 535
+            assert len(store.search()) == len(expanded)
+            assert len(store.search("модель")) == len(expanded)
         finally:
             store.close()
         with patch("app.search.embeddings.Embeddings.encode", side_effect=AssertionError("Unchanged bank must not be re-embedded")):
             store = Store(settings_at(tmp_path))
             try:
-                assert store.vectors.count(store.collection, exact=True).count == 535
+                assert store.vectors.count(store.collection, exact=True).count == len(expanded)
             finally:
                 store.close()
 
@@ -163,7 +186,7 @@ def test_short_mixed_sessions_rotate_after_practice_and_restart(tmp_path):
     with TestClient(create_app(settings)) as client:
         complete_short_session(client)
     with TestClient(create_app(settings)) as client:
-        for _ in range(4):
+        for _ in range(len(TOPICS) - 1):
             complete_short_session(client)
     assert practiced == {topic["id"]: 2 for topic in TOPICS}
-    assert len(question_ids) == len(set(question_ids)) == 10
+    assert len(question_ids) == len(set(question_ids)) == 2 * len(TOPICS)

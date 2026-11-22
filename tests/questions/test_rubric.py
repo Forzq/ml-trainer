@@ -86,7 +86,8 @@ def test_session_profile_and_snapshots_drive_evaluation_and_survive_restart(tmp_
             with patch("app.integrations.openrouter.httpx.Client") as provider:
                 provider.return_value.__enter__.return_value.post.side_effect = respond
                 response = client.post(f"/api/sessions/{session_id}/answer", headers=headers,
-                                       json={"question_id": 302, "answer": "Изображение состоит из пикселей. RGB — три канала."})
+                                       json={"question_id": 302, "answer": "Изображение состоит из пикселей. RGB — три канала.",
+                                             "voice": "male"})
             assert response.status_code == 200
             assert response.json()["evaluation"]["score"] == 60
             context = json.loads(received[0]["messages"][-1]["content"])
@@ -96,6 +97,7 @@ def test_session_profile_and_snapshots_drive_evaluation_and_survive_restart(tmp_
             assert sum(c["max_points"] for c in context["criteria"]) == 100
             assert "keywords" not in context["criteria"][0]
             assert "необязательное" in received[0]["messages"][0]["content"]
+            assert "я проверил»" in received[0]["messages"][0]["content"]
             assert received[0]["max_tokens"] == 2000
         with TestClient(create_app(settings)) as client:
             restored = client.get(f"/api/sessions/{session_id}").json()

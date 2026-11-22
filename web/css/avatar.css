@@ -9,32 +9,12 @@
 .trainer-avatar-image { width: 100%; height: 100%; max-height: 238px; object-fit: contain; object-position: bottom center; }
 .trainer-portrait-stack { position: relative; width: 100%; height: 100%; max-height: 238px; transform-origin: 50% 90%; animation: trainer-breathe 4.8s ease-in-out infinite; }
 .trainer-portrait { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: bottom center; }
-.trainer-portrait[hidden], #avatar-custom-settings[hidden], #avatar-preset-info[hidden] { display: none; }
-.avatar-preset-info { padding: 15px; margin-top: 15px; border: 1px solid var(--line); border-radius: 10px; background: #a855f70c; }
-.avatar-preset-info p { margin: 0 0 8px; font-size: 12px; }
-.avatar-preset-info small { font-size: 10px; color: var(--muted); line-height: 1.7; }
+.trainer-portrait[hidden], #trainer-avatar[hidden] { display: none; }
 @keyframes trainer-breathe { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-1px) scaleY(1.004); } }
-.trainer-avatar-empty { text-align: center; color: var(--muted, #89947f); }
-.trainer-avatar-empty > span { font-size: 50px; color: #ad82e0; }
-.trainer-avatar-empty p { font-size: 11px; margin: 15px 0; }
 .trainer-avatar-status { text-align: center; font-size: 10px; color: var(--muted, #89947f); padding: 13px; margin: 0; }
-#trainer-avatar[hidden], .trainer-avatar-image[hidden], .trainer-avatar-empty[hidden] { display: none; }
-.avatar-modal { width: 580px; max-height: calc(100vh - 48px); overflow-y: auto; }
 .avatar-visible-label { display: flex; align-items: center; gap: 10px; font-size: 12px; }
 .avatar-visible-label input { accent-color: #a855f7; }
-.avatar-modal .helper { margin: 16px 0; }
-.avatar-privacy { font-size: 10px; line-height: 1.7; color: var(--muted, #89947f); }
-.avatar-frame-group { padding: 17px 0; border-top: 1px solid var(--line); }
-.avatar-frame-group h3 { font-size: 12px; font-weight: 500; margin: 0 0 12px; }
-.avatar-frame-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.avatar-upload label { display: flex; flex-direction: column; gap: 9px; font-size: 10px; cursor: pointer; text-align: center; }
-.avatar-thumbnail { display: grid; place-items: center; height: 100px; border: 1px dashed #a78bfa77; border-radius: 10px; font-size: 25px; color: #a78bfa; background: #a855f708; overflow: hidden; }
-.avatar-thumbnail img { width: 100%; height: 100%; object-fit: contain; max-height: 100px; }
-.avatar-upload input { width: 100%; max-width: 220px; font-size: 10px; color: var(--muted, #89947f); }
-.avatar-upload input::file-selector-button { border: 1px solid var(--line); border-radius: 5px; padding: 5px; background: var(--surface, #fff); color: var(--ink); cursor: pointer; }
-.avatar-upload .text-button { font-size: 10px; display: block; margin: 8px auto 0; }
-.avatar-modal[aria-busy="true"] #avatar-frames { pointer-events: none; opacity: .6; }
-.avatar-menu-button { margin-top: 12px; }
+.avatar-visible-label:has(input:disabled) { color: var(--muted); }
 @media (max-width: 850px) {
   .training-side:has(#trainer-avatar:not([hidden])) { display: block; grid-row: 1; }
   .training-side > .side-card { display: none; }

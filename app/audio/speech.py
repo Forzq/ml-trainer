@@ -7,7 +7,7 @@ from contextlib import aclosing
 
 import httpx
 
-from app.core.config import Settings
+from app.core.config import Settings, TrainerVoice
 
 TONE_CUES = {
     "natural": "",
@@ -37,17 +37,19 @@ class Speech:
         self.cache_bytes = 0
         self.pending: dict[str, list] = {}
 
-    async def synthesize(self, text: str, tone: str = "natural") -> bytes:
-        return b"".join([chunk async for chunk in self.stream(text, tone)])
+    async def synthesize(self, text: str, tone: str = "natural", *, voice: TrainerVoice = "female") -> bytes:
+        return b"".join([chunk async for chunk in self.stream(text, tone, voice=voice)])
 
-    async def stream(self, text: str, tone: str = "natural"):
+    async def stream(self, text: str, tone: str = "natural", *, voice: TrainerVoice = "female"):
         settings = self.settings
         if settings.tts_provider != "fish":
             raise SpeechError(409, "Озвучка Fish Audio выключена. Укажи TTS_PROVIDER=fish в .env.")
         if not settings.fish_key:
             raise SpeechError(409, "Добавь FISH_AUDIO_API_KEY в .env и перезапусти приложение.")
-        if not re.fullmatch(r"[a-fA-F0-9]{32}", settings.fish_voice_id):
-            raise SpeechError(409, "Проверь FISH_AUDIO_VOICE_ID: нужен идентификатор голоса из 32 символов.")
+        voice_id = settings.fish_voice_for(voice)
+        voice_env = "FISH_AUDIO_MALE_VOICE_ID" if voice == "male" else "FISH_AUDIO_VOICE_ID"
+        if not re.fullmatch(r"[a-fA-F0-9]{32}", voice_id):
+            raise SpeechError(409, f"Проверь {voice_env}: нужен идентификатор голоса из 32 символов.")
         if settings.fish_model not in {"s2-pro", "s2.1-pro", "s2.1-pro-free", "drama-3"}:
             # Fish silently falls back to a paid default for an unknown model header.
             raise SpeechError(409, "Неизвестная FISH_AUDIO_MODEL. Используй s2.1-pro-free, s2.1-pro, s2-pro или drama-3.")
@@ -60,13 +62,14 @@ class Speech:
             raise SpeechError(409, "Неизвестный FISH_AUDIO_LATENCY. Используй low, balanced или normal.")
         # Direct only the TTS model; chat text and LLM evaluation stay unchanged.
         synthesis_text = f"{TONE_CUES[tone]} {text}" if TONE_CUES[tone] else text
-        key = hashlib.sha256((settings.fish_model + "\0" + settings.fish_voice_id + "\0" + settings.fish_latency + "\0" + synthesis_text).encode()).hexdigest()
+        cache_parts = (settings.fish_model, voice_id, settings.fish_latency, synthesis_text)
+        key = hashlib.sha256("\0".join(cache_parts).encode()).hexdigest()
         # Deduplicate the same phrase, but never queue new speech behind an unrelated request.
         pending = self.pending.setdefault(key, [asyncio.Lock(), 0])
         pending[1] += 1
         try:
             async with pending[0]:
-                async with aclosing(self._generate(key, synthesis_text)) as stream:
+                async with aclosing(self._generate(key, synthesis_text, voice_id)) as stream:
                     async for chunk in stream:
                         yield chunk
         finally:
@@ -74,7 +77,7 @@ class Speech:
             if pending[1] == 0:
                 self.pending.pop(key, None)
 
-    async def _generate(self, key: str, synthesis_text: str):
+    async def _generate(self, key: str, synthesis_text: str, voice_id: str):
         settings = self.settings
         if key in self.cache:
             self.cache.move_to_end(key)
@@ -85,7 +88,7 @@ class Speech:
                 async with client.stream(
                     "POST", "https://api.fish.audio/v1/tts",
                     headers={"Authorization": f"Bearer {settings.fish_key}", "model": settings.fish_model},
-                    json={"text": synthesis_text, "reference_id": settings.fish_voice_id, "format": "mp3",
+                    json={"text": synthesis_text, "reference_id": voice_id, "format": "mp3",
                           "mp3_bitrate": 128, "normalize": True, "latency": settings.fish_latency,
                           "chunk_length": 100 if settings.fish_latency == "low" else 200 if settings.fish_latency == "balanced" else 300},
                 ) as response:
@@ -94,7 +97,7 @@ class Speech:
                             401: "Fish Audio отклонил API-ключ. Проверь FISH_AUDIO_API_KEY.",
                             402: "Fish Audio требует доступ или баланс для выбранной модели. Проверь тариф; можно использовать FISH_AUDIO_MODEL=s2.1-pro-free, пока этот режим доступен.",
                             403: "Нет доступа к Fish Audio или выбранному голосу. Проверь ключ и доступность голоса в аккаунте.",
-                            404: "Голос Fish Audio не найден. Проверь FISH_AUDIO_VOICE_ID.",
+                            404: "Выбранный голос Fish Audio не найден. Проверь его идентификатор в .env.",
                             429: "Лимит запросов Fish Audio. Подожди немного и нажми кнопку озвучки снова.",
                         }
                         raise SpeechError(502, messages.get(response.status_code, "Fish Audio не смог озвучить текст. Проверь модель и доступность голоса."))

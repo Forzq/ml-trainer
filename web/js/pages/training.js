@@ -6,7 +6,34 @@ function showStart(topic = "all") {
   $("#session-topic").value = topic;
   const candidateLevel = storage.get("ml-candidate-level");
   $("#candidate-level").value = ["Junior", "Middle", "Senior"].includes(candidateLevel) ? candidateLevel : "Middle";
+  updateSessionCounts();
   $("#start-dialog").showModal();
+}
+
+function updateSessionCounts() {
+  const topicId = $("#session-topic").value;
+  const level = $("#session-level").value;
+  const available = state.config.topics.reduce((count, topic) => {
+    if (topicId !== "all" && topicId !== topic.id) return count;
+    return count + (level === "all" ? topic.count : topic.levels[level]);
+  }, 0);
+  const select = $("#session-count");
+  const selected = Number(select.value);
+  select.querySelector("option[data-available]")?.remove();
+  for (const option of select.options) {
+    option.disabled = Number(option.value) > available;
+    option.hidden = option.disabled;
+  }
+  const maxCount = Math.min(20, available);
+  if (maxCount > 0 && !Array.from(select.options).some((option) => Number(option.value) === maxCount)) {
+    const option = new Option(`${maxCount} · все доступные`, maxCount);
+    option.dataset.available = "";
+    const nextOption = Array.from(select.options).find((item) => Number(item.value) > maxCount);
+    select.add(option, nextOption);
+  }
+  const enabled = Array.from(select.options).filter((option) => !option.disabled);
+  const preferred = enabled.findLast((option) => Number(option.value) <= (selected || 4));
+  select.value = preferred?.value || enabled[0]?.value || "";
 }
 
 async function startSession(event) {
@@ -18,8 +45,6 @@ async function startSession(event) {
   button.disabled = true;
   try {
     const liveMode = $("#session-mode").value === "live";
-    live.timing.silenceMs = Number($("#live-silence").value);
-    live.threshold = Number($("#live-sensitivity").value);
     if (liveMode) {
       await live.prepare();
       if (!$("#start-dialog").open) { live.stop(); return; }
@@ -28,7 +53,7 @@ async function startSession(event) {
       await api(`/sessions/${state.session.id}/finish`, { method: "POST" });
     }
     const candidateLevel = $("#candidate-level").value;
-    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, level: $("#session-level").value, candidate_level: candidateLevel, count: Number($("#session-count").value) } }));
+    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, level: $("#session-level").value, candidate_level: candidateLevel, count: Number($("#session-count").value) || 1 } }));
     storage.set("ml-candidate-level", candidateLevel);
     storage.set("ml-session", state.session.id);
     state.awaitingNext = false;
@@ -94,7 +119,10 @@ async function submitAnswer(event, skip = false, { silent = false } = {}) {
   $("#activity-label").textContent = reviewing ? "Отвечаю…" : "Разбираю ответ…";
   cancelSpeech();
   try {
-    const result = await api(`/sessions/${state.session.id}/${reviewing ? "discuss" : "answer"}`, { method: "POST", body: reviewing ? { question_id: state.session.question.id, message: answer } : { question_id: state.session.question.id, answer, skip } });
+    const question_id = state.session.question.id;
+    const voice = trainerVoice();
+    const body = reviewing ? { question_id, message: answer, voice } : { question_id, answer, skip, voice };
+    const result = await api(`/sessions/${state.session.id}/${reviewing ? "discuss" : "answer"}`, { method: "POST", body });
     applySession(result.session);
     storage.remove(key);
     if (state.page === "training") {

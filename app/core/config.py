@@ -1,11 +1,14 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
+
+TrainerVoice = Literal["female", "male"]
 
 
 @dataclass
@@ -25,6 +28,10 @@ class Settings:
     fish_voice_id: str = os.getenv("FISH_AUDIO_VOICE_ID", "1db1618b6eaf4571ac7db70e20eb6727")
     fish_model: str = os.getenv("FISH_AUDIO_MODEL", "s2.1-pro-free")
     fish_latency: str = os.getenv("FISH_AUDIO_LATENCY", "low")
+    fish_male_voice_id: str = os.getenv("FISH_AUDIO_MALE_VOICE_ID") or "de9a2c99fcee4dfbbaec90327eab36d8"
+
+    def fish_voice_for(self, voice: TrainerVoice) -> str:
+        return self.fish_male_voice_id if voice == "male" else self.fish_voice_id
 
     @property
     def stt_enabled(self) -> bool:

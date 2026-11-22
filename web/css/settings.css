@@ -1,0 +1,53 @@
+.settings-page {
+  max-width: 980px;
+  margin-inline: auto;
+}
+.settings-page [hidden] { display: none; }
+.settings-page .page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.settings-page .page-title h1 { margin: 0; }
+.settings-grid, .settings-connections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.settings-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.settings-card h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  letter-spacing: -.25px;
+}
+.settings-card select { font-size: 13px; }
+.settings-card .auto-speech-label, .settings-card .avatar-visible-label { font-size: 13px; }
+.settings-card .voice-preview { margin-top: 16px; }
+.settings-wide { grid-column: 1 / -1; }
+.settings-connections { gap: 10px; }
+.settings-connections .connection { margin: 0; }
+.settings-details { margin-bottom: 0; }
+.settings-page .shutdown-button { margin: 22px 0 0 auto; padding: 8px 0; font-size: 12px; }
+
+@media (max-width: 950px) {
+  .settings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+  .settings-card { padding: 16px; }
+  .settings-connections { grid-template-columns: 1fr; }
+}

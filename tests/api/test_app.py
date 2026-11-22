@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
+from app.questions.catalog import load_cards
 from app.search.embeddings import Embeddings
 from app.server import create_app
 
@@ -20,14 +21,14 @@ def test_vectors_search_and_topics(tmp_path):
     with TestClient(create_app(settings_at(tmp_path))) as client:
         assert client.get("/").status_code == 200
         config = client.get("/api/config").json()
-        assert config["cards"] == 500
+        assert config["cards"] == len(load_cards())
         assert config["database"] == "Qdrant Local"
         assert not config["ai"]
         found = client.get("/api/cards", params={"q": "переобучение"}).json()["cards"]
         assert found[0]["title"] == "Переобучение"
         assert "reference" not in found[0]
         rows = client.get("/api/cards", params={"topic": "classical_ml"}).json()["cards"]
-        assert len(rows) == 100
+        assert len(rows) == config["topics"][0]["count"]
         assert all(card["topic_id"] == "classical_ml" for card in rows)
 
 
@@ -60,7 +61,7 @@ def test_full_session_and_history_survive_restart(tmp_path):
         assert state["completed"]
         assert len(state["attempts"]) == 2
         assert state["attempts"][0]["answer"].startswith("Модель")
-        assert client.get("/api/config").json()["cards"] == 500
+        assert client.get("/api/config").json()["cards"] == len(load_cards())
 
 
 def test_validation_duplicate_answers_and_local_request_protection(tmp_path):

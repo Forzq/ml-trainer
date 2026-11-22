@@ -1,6 +1,10 @@
 "use strict";
 
-const trainerAvatar = new TrainerAvatar({ api, storage, toast });
+const trainerAvatar = new TrainerAvatar({
+  api, storage, toast,
+  panel: settingsPage.querySelector("#avatar-settings"),
+  voice: trainerVoice,
+});
 const live = new LiveTraining({
   session: () => state.session,
   busy: () => state.busy,
@@ -11,7 +15,7 @@ const live = new LiveTraining({
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error("Запись недоступна. Обнови WebView2 Runtime.");
     if (state.volume === 0) throw new Error("Для Live Training увеличь громкость голоса выше 0%.");
     if (state.config.tts?.provider === "fish" ? !state.config.tts.ready : !("speechSynthesis" in window)) {
-      throw new Error("Для Live Training настрой озвучку в «Подключениях».");
+      throw new Error("Проверь подключение озвучки в разделе «Настройки».");
     }
   },
   say: async (text) => {
@@ -48,21 +52,17 @@ const live = new LiveTraining({
   next: () => nextQuestion({ silent: true }),
   finish: () => finishSession(),
 });
+bindLiveSettings();
 
 function syncTheme() {
-  const dark = window.MLTheme.current === "dark";
-  const button = $("#theme-toggle");
-  const label = dark ? "Включить светлую тему" : "Включить тёмную тему";
-  button.innerHTML = icon(dark ? "sun" : "moon");
-  button.setAttribute("aria-label", label);
-  button.setAttribute("aria-pressed", String(dark));
-  button.title = label;
+  const theme = window.MLTheme.current;
+  settingsPage.querySelector("#theme-choice").value = theme;
   if (typeof window.pywebview?.api?.set_theme === "function") {
-    window.pywebview.api.set_theme(dark ? "dark" : "light").catch(() => {});
+    window.pywebview.api.set_theme(theme).catch(() => {});
   }
 }
 
-$("#theme-toggle").addEventListener("click", () => window.MLTheme.set(window.MLTheme.current === "dark" ? "light" : "dark"));
+settingsPage.querySelector("#theme-choice").addEventListener("change", (event) => window.MLTheme.set(event.target.value));
 window.addEventListener("ml-theme-change", syncTheme);
 window.addEventListener("pywebviewready", syncTheme);
 window.addEventListener("storage", (event) => { if (event.key === "ml-theme") { window.MLTheme.set(event.newValue); } });
@@ -71,15 +71,23 @@ syncTheme();
 async function route() {
   if (!state.config) return;
   if (state.busy) { toast("Дождись завершения запроса."); history.replaceState(null, "", `#${state.page}`); return; }
-  if (live.enabled) live.stop();
+  const page = location.hash.slice(1) || "home";
+  const nextPage = ["home", "library", "history", "training", "settings"].includes(page) ? page : "home";
+  if (live.enabled) {
+    if (nextPage === "settings") {
+      if (live.running) live.pause("Настройки открыты. Вернись к тренировке и нажми «Продолжить».");
+    } else if (!(state.page === "settings" && nextPage === "training" && live.paused)) {
+      live.stop();
+    }
+  }
   cancelSpeech();
   discardRecording();
-  const page = location.hash.slice(1) || "home";
-  state.page = ["home", "library", "history", "training"].includes(page) ? page : "home";
+  state.page = nextPage;
   try {
     if (state.page === "home") await renderHome();
     else if (state.page === "library") await renderLibrary();
     else if (state.page === "history") await renderHistory();
+    else if (state.page === "settings") renderSettings();
     else {
       renderTraining();
       if (state.liveNext && state.session?.question) { state.liveNext = false; await live.start({ prepared: true }); }
@@ -92,11 +100,6 @@ document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
   if (!target) return;
   const action = target.dataset.action;
-  if (action === "avatar-settings") {
-    if (live.running) live.pause("Настройка аватара. Нажми «Продолжить», когда будешь готов.");
-    trainerAvatar.show();
-    return;
-  }
   if (action.startsWith("live-")) {
     try {
       if (action === "live-pause") live.pause();
@@ -109,16 +112,19 @@ document.addEventListener("click", async (event) => {
     } catch (error) { toast(error.message); }
     return;
   }
-  if (state.busy && !["settings", "close-settings", "speak", "toggle-sound", "preview-voice", "preview-tone", "stop-preview"].includes(action)) { toast("Дождись завершения запроса."); return; }
+  if (state.busy && !["speak", "toggle-sound", "stop-preview"].includes(action)) { toast("Дождись завершения запроса."); return; }
   try {
-    if (live.running && ["speak", "preview-voice", "preview-tone"].includes(action)) live.pause("Live Training на паузе для повторного прослушивания.");
+    if (live.running && action === "speak") live.pause("Live Training на паузе для повторного прослушивания.");
     if (action === "start") showStart();
     else if (action === "topic") showStart(target.dataset.topic);
     else if (["home", "library", "history"].includes(action)) location.hash = action;
-    else if (action === "settings") showSettings();
-    else if (action === "preview-voice" || action === "preview-tone") await speak("Привет! Я твой тренер по машинному обучению. Сегодня разберём переобучение. Объясни своими словами, почему модель может ошибаться на новых данных.", { force: true });
+    else if (action === "settings") openSettings("connections");
+    else if (action === "avatar-settings") openSettings("avatar");
+    else if (action === "preview-voice") {
+      const intro = trainerVoice() === "male" ? "Я подготовил вопрос" : "Я подготовила вопрос";
+      await speak(`Привет! ${intro} о переобучении. Почему модель может хорошо работать на обучающих данных и ошибаться на новых?`, { force: true });
+    }
     else if (action === "stop-preview") cancelSpeech();
-    else if (action === "close-settings") $("#settings-dialog").close();
     else if (action === "resume") location.hash = "training";
     else if (action === "next") await nextQuestion();
     else if (action === "finish") await finishSession();
@@ -130,7 +136,7 @@ document.addEventListener("click", async (event) => {
     else if (action === "history-page") { target.disabled = true; try { await renderHistory(Number(target.dataset.page)); } finally { target.disabled = false; } }
     else if (action === "open-session") { applySession(await api(`/sessions/${target.dataset.id}`)); storage.set("ml-session", state.session.id); location.hash = "training"; }
     else if (action === "reload") await route();
-    else if (action === "shutdown") { discardRecording(); cancelSpeech(); if (isDesktop()) { await window.pywebview.api.close(); return; } await api("/shutdown", { method: "POST" }); $("#settings-dialog").close(); setPage(`<div class="empty-state">${icon("check")}<h3>Приложение остановлено</h3><p>Можно закрыть окно. Чтобы продолжить, снова нажми на ярлык ML Trainer.</p></div>`, "До встречи"); }
+    else if (action === "shutdown") { live.stop(); discardRecording(); cancelSpeech(); if (isDesktop()) { await window.pywebview.api.close(); return; } await api("/shutdown", { method: "POST" }); setPage(`<div class="empty-state">${icon("check")}<h3>Приложение остановлено</h3><p>Можно закрыть окно. Чтобы продолжить, снова нажми на ярлык ML Trainer.</p></div>`, "До встречи"); }
   } catch (error) { toast(error.message); }
 });
 
@@ -141,6 +147,7 @@ document.addEventListener("input", (event) => {
 });
 document.addEventListener("change", (event) => {
   if (event.target.id === "session-mode") $("#live-options").hidden = event.target.value !== "live";
+  if (event.target.id === "session-topic" || event.target.id === "session-level") updateSessionCounts();
   if (event.target.id === "library-level") { state.libraryLevel = event.target.value; searchCards().catch((error) => toast(error.message)); }
 });
 document.addEventListener("keydown", (event) => {
@@ -148,9 +155,7 @@ document.addEventListener("keydown", (event) => {
 });
 window.addEventListener("hashchange", route);
 window.addEventListener("pagehide", () => { live.stop(); discardRecording(); cancelSpeech(); trainerAvatar.context?.close().catch(() => {}); });
-$("#settings-button").addEventListener("click", showSettings);
 $("#speech-indicator").addEventListener("click", cancelSpeech);
-$("#close-settings").addEventListener("click", () => $("#settings-dialog").close());
 $("#close-start").addEventListener("click", () => $("#start-dialog").close());
 $("#start-form").addEventListener("submit", startSession);
 document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } }));
@@ -158,6 +163,7 @@ document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener(
 async function boot() {
   try {
     state.config = await api("/config");
+    syncVoiceControls();
     await trainerAvatar.load().catch(() => toast("Не удалось загрузить картинки аватара. Тренировка доступна."));
     $("#mode-badge").textContent = state.config.ai ? "AI-проверка" : "Демо-режим";
     $("#mode-badge").hidden = false;

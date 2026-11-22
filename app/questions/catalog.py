@@ -1,5 +1,6 @@
-"""Question bank schema and the five interview training topics."""
+"""Question bank schema and interview training topics."""
 import json
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -14,8 +15,10 @@ TOPICS = [
     {"id": "nlp", "name": "NLP", "description": "Язык, тексты и языковые модели", "symbol": "✳"},
     {"id": "cv", "name": "CV", "description": "Изображения и компьютерное зрение", "symbol": "▧"},
     {"id": "dl", "name": "DL", "description": "Нейронные сети и глубокое обучение", "symbol": "∿"},
+    {"id": "ml_system_design", "name": "Системный дизайн", "description": "Архитектура ML-систем, запуск и мониторинг", "symbol": "⌘"},
 ]
 LEGACY_TOPICS = {"fundamentals": "classical_ml", "metrics": "classical_ml", "linear": "classical_ml"}
+MOCK_INTERVIEW_TAG = "mock-interview"
 
 
 def canonical_topic(topic: str) -> str:
@@ -27,6 +30,25 @@ class Criterion(BaseModel):
     label: str = Field(min_length=3)
     keywords: list[str] = Field(min_length=1)
     max_points: int = Field(strict=True, ge=4, le=100)
+
+
+class MockInterviewSource(BaseModel):
+    video_url: str = Field(pattern=r"^https://[^\s]+$")
+    title: str = Field(min_length=3)
+    published_on: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    start_seconds: int = Field(ge=0)
+    end_seconds: int = Field(gt=0)
+    interviewer_summary: str = Field(min_length=15, max_length=1200)
+    format: Literal["mock", "expert-review", "interview-review"] = Field(
+        default="mock", exclude_if=lambda value: value == "mock",
+    )
+
+    @model_validator(mode="after")
+    def valid_clip(self):
+        date.fromisoformat(self.published_on)
+        if self.end_seconds <= self.start_seconds:
+            raise ValueError("A video clip must end after its start")
+        return self
 
 
 class Question(BaseModel):
@@ -41,6 +63,7 @@ class Question(BaseModel):
     criteria: list[Criterion] = Field(min_length=2, max_length=6)
     followups: list[str] = Field(default_factory=list, max_length=8)
     rubric_version: str
+    mock_sources: list[MockInterviewSource] = Field(default_factory=list, exclude_if=lambda sources: not sources)
 
     @model_validator(mode="after")
     def valid_rubric(self):
@@ -48,6 +71,8 @@ class Question(BaseModel):
             raise ValueError("Rubric needs unique criterion IDs and weights totalling 100")
         if any(not text.strip() for text in self.followups):
             raise ValueError("Empty followup")
+        if bool(self.mock_sources) != (MOCK_INTERVIEW_TAG in self.tags):
+            raise ValueError("The mock-interview tag requires a video source")
         return self
 
 

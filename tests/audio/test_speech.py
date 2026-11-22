@@ -57,6 +57,26 @@ def test_voice_request_audio_cache_and_key_privacy(tmp_path):
         assert body["chunk_length"] == 100
 
 
+def test_switching_voices_routes_to_distinct_fish_references_and_cache_entries(tmp_path):
+    settings = settings_at(tmp_path)
+    settings.fish_male_voice_id = "1234567890abcdef1234567890abcdef"
+    references = []
+
+    def respond(request):
+        references.append(json.loads(request.content)["reference_id"])
+        return httpx.Response(200, content=AUDIO, headers={"Content-Type": "audio/mpeg"})
+
+    with TestClient(create_app(settings)) as client, provider(respond):
+        token = headers(client)
+        for voice in ("female", "male", "female", "male"):
+            response = client.post("/api/speech", headers=token,
+                                   json={"text": "Привет", "voice": voice, "stream": voice == "male"})
+            assert response.status_code == 200 and response.content == AUDIO
+        assert client.post("/api/speech", headers=token,
+                           json={"text": "Привет", "voice": settings.fish_male_voice_id}).status_code == 422
+        assert references == [settings.fish_voice_id, settings.fish_male_voice_id]
+
+
 @pytest.mark.parametrize("status", [401, 402, 403, 404, 429, 503])
 def test_provider_errors_do_not_fall_back_or_expose_upstream_body(tmp_path, status):
     with TestClient(create_app(settings_at(tmp_path))) as client, provider(lambda request: httpx.Response(

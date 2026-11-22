@@ -2,6 +2,7 @@
 import hashlib
 import threading
 from qdrant_client import QdrantClient, models
+from app.questions.catalog import MOCK_INTERVIEW_TAG
 
 
 class QuestionIndex:
@@ -29,7 +30,8 @@ class QuestionIndex:
             if existing == self.by_id:
                 return
             def text(card):
-                return " ".join([card["topic"], card["title"], card["question"], " ".join(card["tags"])])
+                keywords = " ".join(tag for tag in card["tags"] if tag != MOCK_INTERVIEW_TAG)
+                return " ".join([card["topic"], card["title"], card["question"], keywords])
             changed = [card for card in self.cards
                        if card["id"] not in existing or text(existing[card["id"]]) != text(card)]
             # Preserve existing semantic vectors when only answers, criteria or level change.
@@ -59,9 +61,13 @@ class QuestionIndex:
             conditions.append(models.FieldCondition(key="topic_id", match=models.MatchValue(value=topic)))
         if level != "all":
             conditions.append(models.FieldCondition(key="level", match=models.MatchValue(value=level)))
+        query = query.strip()
+        if query.casefold() == MOCK_INTERVIEW_TAG:
+            conditions.append(models.FieldCondition(key="tags", match=models.MatchValue(value=MOCK_INTERVIEW_TAG)))
+            query = ""
         filters = models.Filter(must=conditions) if conditions else None
         with self.lock:
-            if query.strip():
+            if query:
                 found = self.vectors.query_points(
                     self.collection, query=self.embeddings.encode([query])[0],
                     query_filter=filters, limit=len(self.cards), with_payload=True,

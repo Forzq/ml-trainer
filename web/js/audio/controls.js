@@ -2,16 +2,17 @@
 
 function syncVoiceControls() {
   const percent = Math.round(state.volume * 100);
-  $("#voice-volume").value = percent;
-  $("#voice-volume").style.setProperty("--volume", `${percent}%`);
-  $("#voice-volume-output").textContent = `${percent}%`;
-  $("#voice-volume-summary").textContent = `${percent}%`;
-  $("#auto-speech").checked = state.sound;
-  $("#voice-tone").value = state.tone;
+  const volume = settingsPage.querySelector("#voice-volume");
+  volume.value = percent;
+  volume.style.setProperty("--volume", `${percent}%`);
+  settingsPage.querySelector("#voice-volume-output").textContent = `${percent}%`;
+  settingsPage.querySelector("#auto-speech").checked = state.sound;
+  settingsPage.querySelector("#voice-tone").value = state.tone;
   const fish = state.config?.tts?.provider === "fish";
-  $("#voice-tone").disabled = !fish;
-  $(".voice-tone-preview").disabled = !fish || !state.config.tts.ready;
-  $("#voice-tone-hint").textContent = fish ? "Подача следующей фразы. Сила эффекта зависит от голоса и текста." : "Выбор интонации доступен для голоса Fish Audio.";
+  settingsPage.querySelector("#voice-choice").hidden = !fish;
+  settingsPage.querySelector("#trainer-voice").value = state.voice;
+  settingsPage.querySelector("#voice-tone-field").hidden = !fish;
+  settingsPage.querySelector(".voice-preview").disabled = !(fish ? state.config.tts.ready : "speechSynthesis" in window);
   const toggle = $('[data-action="toggle-sound"]');
   if (toggle) {
     toggle.classList.toggle("off", !state.sound);
@@ -40,16 +41,28 @@ function setAutoSpeech(enabled) {
   syncVoiceControls();
 }
 
-$("#voice-volume").addEventListener("input", (event) => setVolume(event.target.value));
-$("#auto-speech").addEventListener("change", (event) => setAutoSpeech(event.target.checked));
-$("#voice-tone").addEventListener("change", (event) => {
+settingsPage.querySelector("#voice-volume").addEventListener("input", (event) => setVolume(event.target.value));
+settingsPage.querySelector("#auto-speech").addEventListener("change", (event) => setAutoSpeech(event.target.checked));
+settingsPage.querySelector("#trainer-voice").addEventListener("change", (event) => {
+  if (state.busy || state.recorder?.state === "recording") {
+    event.target.value = state.voice;
+    toast("Закончи запись или дождись ответа, чтобы сменить голос.");
+    return;
+  }
+  const voice = event.target.value;
+  if (voice !== "female" && voice !== "male") return;
+  if (live.running) live.pause("Голос изменён. Нажми «Продолжить», чтобы вернуться к тренировке.");
+  else cancelSpeech();
+  state.voice = voice;
+  storage.set("ml-trainer-voice", voice);
+  syncTrainerAvatar();
+});
+settingsPage.querySelector("#voice-tone").addEventListener("change", (event) => {
   if (!voiceTones.has(event.target.value)) return;
   state.tone = event.target.value;
   storage.set("ml-voice-tone", state.tone);
   cancelSpeech();
   syncVoiceControls();
 });
-document.addEventListener("click", (event) => { if (!event.target.closest("#voice-controls")) $("#voice-controls").open = false; });
-document.addEventListener("keydown", (event) => { if (event.key === "Escape" && $("#voice-controls").open) { $("#voice-controls").open = false; $("#voice-controls summary").focus(); } });
 syncVoiceControls();
 

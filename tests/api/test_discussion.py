@@ -103,12 +103,15 @@ def test_ai_gets_current_question_and_discussion_context_only(tmp_path):
         provider.return_value.__enter__.return_value.post.side_effect = lambda *args, **kwargs: reply(**kwargs)
         headers = authenticated(client)
         state = answer(client, headers, start(client, headers))
+        assert "я проверила»" in received[-1]["messages"][0]["content"]
         first_id = state["question"]["id"]
         endpoint = f"/api/sessions/{state['id']}"
         first_message = "Уникальное возражение по первой карточке: A17"
-        for text in [first_message, "А почему ты изменил объяснение?"]:
-            response = client.post(endpoint + "/discuss", headers=headers, json={"question_id": first_id, "message": text})
+        for text, voice, form in [(first_message, "female", "я согласна"), ("А почему ты изменил объяснение?", "male", "я согласен")]:
+            response = client.post(endpoint + "/discuss", headers=headers,
+                                   json={"question_id": first_id, "message": text, "voice": voice})
             assert response.status_code == 200
+            assert form in received[-1]["messages"][0]["content"]
         messages = received[-1]["messages"]
         assert messages[-1]["content"] == "А почему ты изменил объяснение?"
         assert first_message in [item["content"] for item in messages]

@@ -11,9 +11,6 @@ function speechStatus(status) {
     preview.innerHTML = `${icon(status === "idle" ? "sound" : "stop")} ${status === "idle" ? "Послушать голос" : "Остановить озвучку"}`;
     preview.dataset.action = status === "idle" ? "preview-voice" : "stop-preview";
   }
-  const tonePreview = $(".voice-tone-preview");
-  tonePreview.innerHTML = `${icon(status === "idle" ? "sound" : "stop")} ${status === "idle" ? "Послушать интонацию" : "Остановить озвучку"}`;
-  tonePreview.dataset.action = status === "idle" ? "preview-tone" : "stop-preview";
 }
 
 function cancelSpeech(completed = false) {
@@ -102,7 +99,7 @@ async function playSpeechStream(response, version, signal) {
 
 async function speak(text, { force = false } = {}) {
   if ((!state.sound && !force) || state.recorder?.state === "recording") return;
-  if (state.volume === 0) { if (force) toast("Громкость голоса — 0%. Увеличь её в настройках голоса справа вверху."); return; }
+  if (state.volume === 0) { if (force) toast("Громкость голоса — 0%. Увеличь её в разделе «Настройки» слева."); return; }
   cancelSpeech();
   speech.completion = new Promise((resolve) => { speech.resolve = resolve; });
   if (state.config?.tts?.provider === "fish") {
@@ -115,7 +112,7 @@ async function speak(text, { force = false } = {}) {
       const response = await fetch("/api/speech", {
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json", "X-App-Token": state.config.token },
-        body: JSON.stringify({ text, tone: state.tone, stream: true }),
+        body: JSON.stringify({ text, tone: state.tone, voice: trainerVoice(), stream: true }),
       });
       if (!response.ok) {
         const result = await response.json();

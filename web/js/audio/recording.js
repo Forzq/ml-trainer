@@ -19,7 +19,7 @@ async function record() {
   if (live.running) return;
   if (state.busy) return;
   if (state.recorder?.state === "recording") { state.recorder.stop(); return; }
-  if (!speechRecognitionReady()) { toast("Для голосового ввода добавь DEEPGRAM_API_KEY или OPENAI_API_KEY в .env; инструкция — в «Подключениях»."); return; }
+  if (!speechRecognitionReady()) { toast("Для голосового ввода добавь DEEPGRAM_API_KEY или OPENAI_API_KEY в .env. Инструкция есть в настройках."); return; }
   if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) { toast(isDesktop() ? "Запись недоступна. Обнови Microsoft Edge WebView2 Runtime." : "Этот браузер не поддерживает запись. Открой приложение в Edge или Chrome."); return; }
   cancelSpeech();
   const sessionId = state.session.id;

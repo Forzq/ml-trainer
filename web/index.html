@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/static/css/avatar.css">
   <link rel="stylesheet" href="/static/css/rubric.css">
   <link rel="stylesheet" href="/static/css/polish.css">
+  <link rel="stylesheet" href="/static/css/settings.css">
   <script src="/static/js/avatar/portrait.js" defer></script>
   <script src="/static/js/avatar/avatar.js" defer></script>
   <script src="/static/js/audio/live.js" defer></script>
@@ -27,8 +28,8 @@
   <script src="/static/js/core/runtime.js" defer></script>
   <script src="/static/js/avatar/presenter.js" defer></script>
   <script src="/static/js/audio/live-panel.js" defer></script>
-  <script src="/static/js/audio/controls.js" defer></script>
   <script src="/static/js/pages/settings.js" defer></script>
+  <script src="/static/js/audio/controls.js" defer></script>
   <script src="/static/js/app.js" defer></script>
 </head>
 <body>
@@ -46,8 +47,6 @@
     <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></symbol>
     <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
     <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
-    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></symbol>
-    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.7 13.1A8.8 8.8 0 0 1 10.9 3.3 9 9 0 1 0 20.7 13.1Z"/></symbol>
   </svg>
 
   <aside class="sidebar">
@@ -58,17 +57,22 @@
       <a class="nav-link" href="#history" data-page="history" aria-label="История" title="История"><svg><use href="#i-clock"/></svg><span class="nav-text">История</span></a>
     </nav>
     <div class="sidebar-bottom">
-      <button class="nav-link" id="settings-button" aria-label="Подключения" title="Подключения"><svg><use href="#i-settings"/></svg><span class="nav-text">Подключения</span></button>
+      <a class="nav-link" href="#settings" data-page="settings" aria-label="Настройки" title="Настройки"><svg><use href="#i-settings"/></svg><span class="nav-text">Настройки</span></a>
     </div>
   </aside>
 
   <main class="main">
-    <header class="topbar"><div class="breadcrumb">ML Trainer <span>/</span> <strong id="page-label">Обзор</strong></div><div class="topbar-right"><button class="speech-indicator" id="speech-indicator" type="button" aria-label="Остановить озвучку" title="Остановить озвучку" hidden></button><span class="demo-badge" id="mode-badge" hidden></span><details class="voice-controls" id="voice-controls"><summary aria-label="Настройки голоса" title="Настройки голоса"><svg aria-hidden="true"><use href="#i-sound"/></svg><span id="voice-volume-summary">75%</span></summary><div class="voice-controls-panel"><label class="voice-volume-label" for="voice-volume">Громкость голоса <output id="voice-volume-output" for="voice-volume">75%</output></label><input id="voice-volume" type="range" min="0" max="100" step="1" value="75" aria-label="Громкость голоса"><label class="voice-tone-label" for="voice-tone">Интонация</label><select id="voice-tone" aria-describedby="voice-tone-hint"><option value="natural">Естественная</option><option value="calm">Спокойная</option><option value="very_calm_slow">Очень спокойно и медленно</option><option value="friendly">Дружелюбная</option><option value="excited">Энергичная</option><option value="soft">Мягкая</option><option value="whisper">Шёпот</option></select><small class="voice-tone-hint" id="voice-tone-hint"></small><button class="button small full voice-tone-preview" data-action="preview-tone" type="button">Послушать интонацию</button><button class="button small full avatar-menu-button" data-action="avatar-settings" type="button">Аватар тренера</button><label class="auto-speech-label"><input id="auto-speech" type="checkbox" checked><span>Озвучивать ответы автоматически</span></label></div></details><button class="theme-toggle" id="theme-toggle" type="button" aria-label="Включить светлую тему" title="Включить светлую тему" aria-pressed="true"><svg aria-hidden="true"><use href="#i-sun"/></svg></button></div></header>
+    <header class="topbar">
+      <div class="breadcrumb">ML Trainer <span>/</span> <strong id="page-label">Обзор</strong></div>
+      <div class="topbar-right">
+        <button class="speech-indicator" id="speech-indicator" type="button" aria-label="Остановить озвучку" title="Остановить озвучку" hidden></button>
+        <span class="demo-badge" id="mode-badge" hidden></span>
+      </div>
+    </header>
     <div id="app-content" class="page-content"><div class="loading-state"><span class="spinner"></span><p>Готовим пространство для практики…</p></div></div>
     <footer class="footer"><span>ML Trainer</span><span>История сохраняется автоматически</span></footer>
   </main>
 
-  <dialog id="settings-dialog" class="modal"><div class="modal-heading"><div><h2>Подключения</h2></div><button class="icon-button" id="close-settings" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div><div id="settings-content"></div></dialog>
   <dialog id="start-dialog" class="modal">
     <div class="modal-heading"><div><span class="eyebrow">НОВАЯ ТРЕНИРОВКА</span><h2>С чего начнём?</h2></div><button class="icon-button" id="close-start" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
     <form id="start-form">
@@ -76,10 +80,6 @@
       <select id="session-mode"><option value="manual">Текст и голос</option><option value="live">Голосовой диалог</option></select>
       <div id="live-options" class="live-options" hidden>
         <p class="helper">Тренер сам озвучивает вопрос, слушает ответ и даёт разбор. После разбора — 6 секунд на уточнение, затем следующий вопрос. Разрешение микрофона понадобится при запуске.</p>
-        <label class="field-label" for="live-silence">Пауза до отправки ответа</label>
-        <select id="live-silence"><option value="1800">1,8 секунды · быстро</option><option value="3000" selected>3 секунды · обычно</option><option value="5000">5 секунд · время подумать</option></select>
-        <label class="field-label" for="live-sensitivity">Чувствительность микрофона</label>
-        <select id="live-sensitivity"><option value="0.007">Тихий голос</option><option value="0.012" selected>Обычная</option><option value="0.025">Шумная комната</option></select>
       </div>
       <label class="field-label" for="session-topic">Тема</label><select id="session-topic"></select>
       <label class="field-label" for="candidate-level">Уровень собеседования</label><select id="candidate-level"><option value="Junior">Junior</option><option value="Middle" selected>Middle</option><option value="Senior">Senior</option></select>
@@ -89,16 +89,63 @@
       <button class="button primary full" type="submit">Начать тренировку <svg><use href="#i-arrow"/></svg></button>
     </form>
   </dialog>
-  <dialog id="avatar-dialog" class="modal avatar-modal" aria-labelledby="avatar-dialog-title">
-    <div class="modal-heading"><div><h2 id="avatar-dialog-title">Аватар тренера</h2></div><button class="icon-button avatar-close" aria-label="Закрыть аватар">×</button></div>
-    <label class="avatar-visible-label"><input type="checkbox" id="avatar-visible" checked> Показывать аватар в тренировке</label>
-    <label class="field-label" for="avatar-preset">Персонаж</label><select id="avatar-preset"><option value="marin">Ментор по ML</option><option value="custom">Свои картинки</option></select>
-    <div id="avatar-preset-info" class="avatar-preset-info" hidden><p>Ментор по ML</p><small>Один образ, моргание, реакции и движение рта во время речи.</small></div>
-    <div id="avatar-custom-settings">
-    <p class="helper">Начни с двух одинаково расположенных изображений персонажа: рот закрыт и рот открыт. Лучше PNG с прозрачным фоном. JPG и WebP тоже подойдут. Дополнительные эмоции можно добавить позже — без них используются основные картинки.</p>
-    <p class="avatar-privacy">Картинки остаются на этом компьютере и не отправляются в AI-сервисы. Большие изображения уменьшаются до 2048 пикселей.</p>
-    <div id="avatar-frames"></div></div><p id="avatar-upload-status" class="helper" role="status"></p>
-  </dialog>
+  <template id="settings-template">
+    <div class="settings-page">
+      <div class="page-title">
+        <h1>Настройки</h1>
+        <button class="button small" type="button" data-action="resume" id="settings-resume" hidden>К тренировке</button>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-column">
+          <section class="settings-card" aria-labelledby="settings-voice">
+            <h2 id="settings-voice">Голос тренера</h2>
+            <div id="voice-choice" hidden>
+              <label class="field-label" for="trainer-voice">Голос Fish Audio</label>
+              <select id="trainer-voice"><option value="female">Женский</option><option value="male">Мужской</option></select>
+            </div>
+            <div id="voice-tone-field" hidden>
+              <label class="field-label" for="voice-tone">Интонация</label>
+              <select id="voice-tone">
+                <option value="natural">Естественная</option><option value="calm">Спокойная</option>
+                <option value="very_calm_slow">Очень спокойно и медленно</option>
+                <option value="friendly">Дружелюбная</option><option value="excited">Энергичная</option>
+                <option value="soft">Мягкая</option><option value="whisper">Шёпот</option>
+              </select>
+            </div>
+            <label class="voice-volume-label field-label" for="voice-volume">Громкость <output id="voice-volume-output" for="voice-volume">75%</output></label>
+            <input id="voice-volume" type="range" min="0" max="100" step="1" value="75">
+            <label class="auto-speech-label"><input id="auto-speech" type="checkbox" checked> Озвучивать ответы автоматически</label>
+            <button class="button small voice-preview" data-action="preview-voice" type="button">Послушать голос</button>
+          </section>
+          <section class="settings-card" aria-labelledby="settings-live">
+            <h2 id="settings-live">Голосовой диалог</h2>
+            <label class="field-label" for="live-silence">Пауза до отправки ответа</label>
+            <select id="live-silence"><option value="1800">1,8 секунды · быстро</option><option value="3000" selected>3 секунды · обычно</option><option value="5000">5 секунд · время подумать</option></select>
+            <label class="field-label" for="live-sensitivity">Чувствительность микрофона</label>
+            <select id="live-sensitivity"><option value="0.007">Тихий голос</option><option value="0.012" selected>Обычная</option><option value="0.025">Шумная комната</option></select>
+          </section>
+        </div>
+        <div class="settings-column">
+          <section class="settings-card" aria-labelledby="settings-appearance">
+            <h2 id="settings-appearance">Оформление</h2>
+            <label class="field-label" for="theme-choice">Цветовая тема</label>
+            <select id="theme-choice"><option value="dark">Тёмная</option><option value="light">Светлая</option></select>
+          </section>
+          <section class="settings-card" id="avatar-settings" aria-labelledby="settings-avatar">
+            <h2 id="settings-avatar" tabindex="-1">Аватар тренера</h2>
+            <label class="avatar-visible-label" id="avatar-visible-label"><input type="checkbox" id="avatar-visible" checked> Показывать аватар в тренировке</label>
+            <label class="field-label" for="avatar-preset">Персонаж</label>
+            <select id="avatar-preset"><option value="marin">Ментор по ML</option></select>
+          </section>
+        </div>
+        <section class="settings-card settings-wide" aria-labelledby="settings-connections">
+          <h2 id="settings-connections" tabindex="-1">Подключения</h2>
+          <div id="connection-settings"></div>
+        </section>
+      </div>
+      <button class="shutdown-button" data-action="shutdown" type="button">Остановить приложение</button>
+    </div>
+  </template>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

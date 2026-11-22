@@ -1,4 +1,5 @@
 """Validate and sync the catalog to the configured Qdrant, preserving history."""
+import argparse
 import hashlib
 import json
 import shutil
@@ -31,6 +32,9 @@ def history_snapshot(path):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--skip-search-probes", action="store_true", help="Verify persisted cards without extra embedding requests")
+    options = parser.parse_args()
     settings = Settings()
     cards = load_cards()
     print("Validated questions:", len(cards), flush=True)
@@ -67,15 +71,18 @@ def main():
                    "data_science": "Что означает p-value при проверке нулевой гипотезы?",
                    "nlp": "Зачем использовать TF-IDF и как работает IDF?",
                    "cv": "Как вычислить IoU пересечения и объединения двух bounding boxes?",
-                   "dl": "Чем model.eval() отличается от отключения autograd через no_grad()?"}
-        probes = {topic: [card["id"] for card in store.search(query, topic=topic)[:5]]
-                  for topic, query in queries.items() if any(card["topic_id"] == topic for card in cards)}
+                   "dl": "Чем model.eval() отличается от отключения autograd через no_grad()?",
+                   "ml_system_design": "Как уложить онлайн-инференс в бюджет задержки p95?"}
+        probes = {} if options.skip_search_probes else {
+            topic: [card["id"] for card in store.search(query, topic=topic)[:5]]
+            for topic, query in queries.items() if any(card["topic_id"] == topic for card in cards)
+        }
         result = {"questions": len(persisted), "topics": dict(Counter(card["topic_id"] for card in persisted)),
                   "levels": dict(Counter(card["level"] for card in persisted)), "collection": store.collection,
                   "embeddings": store.embeddings.name, "semantic": store.embeddings.remote,
                   "search_probe_ids": probes.get("classical_ml", []), "search_probes": probes,
                   "topic_levels": {topic: dict(Counter(card["level"] for card in persisted if card["topic_id"] == topic))
-                                   for topic in probes}, "backup": str(backup)}
+                                   for topic in queries}, "backup": str(backup)}
     finally:
         store.close()
     after = history_snapshot(path)

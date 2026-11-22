@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-PROMPT_VERSION = "weighted-rubric-v1"
+PROMPT_VERSION = "weighted-rubric-v2"
 CREDIT_RULES = {
     "0": "Критерий не раскрыт или объяснён неверно.",
     "1": "Есть отдельный верный элемент, но большая часть смысла не раскрыта или ошибочна.",

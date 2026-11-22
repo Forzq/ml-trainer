@@ -73,9 +73,11 @@ def main():
                 assert window.evaluate_js("Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder)")
                 assert window.evaluate_js("window.pywebview.platform") == "edgechromium"
                 assert window.evaluate_js("document.documentElement.dataset.theme") == "dark"
-                window.evaluate_js("document.querySelector('#theme-toggle').click(); true")
+                window.evaluate_js("document.querySelector('[data-page=settings]').click(); true")
+                wait_js(window, "Boolean(document.querySelector('#theme-choice'))")
+                window.evaluate_js("const choice = document.querySelector('#theme-choice'); choice.value='light'; choice.dispatchEvent(new Event('change')); true")
                 wait_js(window, "document.documentElement.dataset.theme === 'light'")
-                window.evaluate_js("document.querySelector('#theme-toggle').click(); true")
+                window.evaluate_js("const choice = document.querySelector('#theme-choice'); choice.value='dark'; choice.dispatchEvent(new Event('change')); true")
                 wait_js(window, "document.documentElement.dataset.theme === 'dark'")
                 window.evaluate_js("state.sound = false; showStart('cv'); document.querySelector('#session-count').value='2'; document.querySelector('#start-form').requestSubmit(); true")
                 wait_js(window, "Boolean(document.querySelector('#answer-input'))")
@@ -107,8 +109,9 @@ def main():
                 wait_js(window, "Boolean(document.querySelector('[data-action=next]'))")
                 window.evaluate_js("document.querySelector('[data-action=next]').click(); true")
                 wait_js(window, "Boolean(document.querySelector('.result-hero'))")
-                window.evaluate_js("showSettings(); true")
-                settings_text = window.evaluate_js("document.querySelector('#settings-content').textContent")
+                window.evaluate_js("openSettings('connections'); true")
+                wait_js(window, "Boolean(document.querySelector('#connection-settings'))")
+                settings_text = window.evaluate_js("document.querySelector('#connection-settings').textContent")
                 assert "Озвучка" in settings_text and "Системный голос" in settings_text
                 buffer = io.BytesIO()
                 with wave.open(buffer, "wb") as wav:
@@ -129,7 +132,7 @@ def main():
                     syncVoiceControls();
                     const toneSelect = document.querySelector('#voice-tone');
                     toneSelect.value='friendly'; toneSelect.dispatchEvent(new Event('change', {bubbles:true}));
-                    showSettings(); document.querySelector('[data-action=preview-voice]').click(); true
+                    document.querySelector('[data-action=preview-voice]').click(); true
                 """ % (encoded, mime))
                 wait_js(window, "speech.status === 'playing'")
                 assert window.evaluate_js("Boolean(speech.audio && !speech.audio.paused)")
@@ -165,7 +168,6 @@ def main():
                 window.evaluate_js("cancelSpeech(); true")
                 assert window.evaluate_js("speech.audio === null && speech.status === 'idle'")
                 window.evaluate_js("""
-                    document.querySelector('#settings-dialog').close();
                     const volume = document.querySelector('#voice-volume');
                     volume.value = '40'; volume.dispatchEvent(new Event('input', {bubbles:true}));
                     const auto = document.querySelector('#auto-speech');
@@ -181,12 +183,16 @@ def main():
                 window.evaluate_js("document.querySelector('#answer-input').value='А если я сформулировал это другими словами?'; document.querySelector('#answer-form').requestSubmit(); true")
                 wait_js(window, "state.session.attempts[0].discussion.length === 1 && speech.status === 'playing'")
                 assert window.evaluate_js("window.nativeSpokenTexts[window.nativeSpokenTexts.length-1] === state.session.attempts[0].discussion[0].reply")
-                window.evaluate_js("const volumeLive = document.querySelector('#voice-volume'); volumeLive.value='22'; volumeLive.dispatchEvent(new Event('input',{bubbles:true})); true")
-                assert window.evaluate_js("speech.audio.volume === 0.22")
-                window.evaluate_js("const autoOff = document.querySelector('#auto-speech'); autoOff.checked=false; autoOff.dispatchEvent(new Event('change',{bubbles:true})); const replay=document.querySelectorAll('[data-action=speak]'); replay[replay.length-1].click(); true")
+                window.evaluate_js("openSettings(); true")
+                wait_js(window, "Boolean(document.querySelector('#voice-volume'))")
+                assert window.evaluate_js("speech.status === 'idle'")
+                window.evaluate_js("const volume = document.querySelector('#voice-volume'); volume.value='22'; volume.dispatchEvent(new Event('input')); document.querySelector('#auto-speech').click(); document.querySelector('#settings-resume').click(); true")
+                wait_js(window, "state.page === 'training' && Boolean(document.querySelector('#answer-input'))")
+                window.evaluate_js("const replay=document.querySelectorAll('[data-action=speak]'); replay[replay.length-1].click(); true")
                 wait_js(window, "speech.status === 'playing'")
                 assert window.evaluate_js("state.sound === false && speech.audio.volume === 0.22")
-                window.evaluate_js("cancelSpeech(); showSettings(); true")
+                window.evaluate_js("openSettings(); true")
+                wait_js(window, "Boolean(document.querySelector('[data-action=shutdown]'))")
                 # Exercise the actual JS -> Python close bridge.
                 window.run_js("document.querySelector('[data-action=shutdown]').click()")
                 finished.set()

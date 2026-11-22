@@ -13,43 +13,8 @@
 .speech-indicator[hidden] { display: none; }
 .speech-indicator svg, .speech-indicator .spinner { width: 13px; height: 13px; }
 .speech-indicator:hover { border-color: #ad82e0; color: var(--ink); }
-.voice-preview { margin-top: 3px; }
 .topbar { position: relative; z-index: 10; }
 .topbar-right { gap: 14px; }
-.voice-controls { position: relative; }
-.voice-controls > summary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 9px;
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--muted);
-  cursor: pointer;
-  list-style: none;
-  font-size: 10px;
-  user-select: none;
-}
-.voice-controls > summary::-webkit-details-marker { display: none; }
-.voice-controls > summary svg { width: 16px; height: 16px; }
-.voice-controls > summary span { min-width: 27px; text-align: right; font-variant-numeric: tabular-nums; }
-.voice-controls[open] > summary,
-.voice-controls > summary:hover { color: var(--ink); border-color: #a78bfa; }
-.voice-controls > summary:focus-visible { outline: 2px solid #a78bfa; outline-offset: 3px; }
-.voice-controls-panel {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 12px);
-  width: 300px;
-  padding: 19px;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: var(--surface);
-  box-shadow: 0 14px 45px #00000024;
-  color: var(--ink);
-}
 .voice-volume-label { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
 .voice-volume-label output { color: #9e79d6; font-variant-numeric: tabular-nums; }
 #voice-volume {
@@ -68,12 +33,6 @@
 #voice-volume:focus-visible { outline: 2px solid #a78bfa; outline-offset: 8px; }
 .auto-speech-label { display: flex; align-items: start; gap: 9px; font-size: 11px; line-height: 1.6; cursor: pointer; }
 .auto-speech-label input { accent-color: #9663db; margin: 2px 0 0; }
-.voice-controls-panel p { margin: 11px 0 0 22px; font-size: 10px; color: var(--muted); line-height: 1.8; }
-.voice-tone-label { display: block; margin: 0 0 9px; font-size: 12px; }
-.voice-controls-panel select { padding: 10px; font-size: 12px; }
-.voice-controls-panel select:disabled { opacity: .55; cursor: default; }
-.voice-tone-hint { display: block; font-size: 10px; color: var(--muted); line-height: 1.7; margin-top: 8px; }
-.voice-tone-preview { margin: 13px 0 19px; }
 .conversation-divider { display: flex; align-items: center; gap: 12px; margin: 26px 0; color: var(--muted); font-size: 10px; }
 .conversation-divider::before, .conversation-divider::after { content: ""; height: 1px; background: var(--line); flex: 1; }
 .history-discussion { margin: 20px 0 0; border-top: 1px solid var(--line); padding-top: 15px; }
@@ -101,32 +60,13 @@
 [data-theme="dark"] .live-options { border-color: #5a3d70; }
 .live-panel[data-phase="listening"] .live-badge, .live-panel[data-phase="followup"] .live-badge { color: #4a967b; }
 .next-panel p { max-width: 340px; line-height: 1.75; }
-[data-theme="dark"] .voice-controls-panel { border-color: #59406c; background: #201927; box-shadow: 0 16px 50px #00000070; }
 @media (max-width: 1100px) { .speech-indicator > span:not(.spinner) { display: none; } .topbar-right { gap: 9px; } }
 @media (max-width: 610px) {
-  .voice-controls > summary { min-height: 29px; padding: 5px; border-radius: 8px; }
-  .voice-controls > summary span { display: none; }
-  .voice-controls-panel { position: fixed; top: 59px; right: 12px; width: min(300px, calc(100vw - 84px)); }
   .topbar .topbar-right { gap: 6px; }
   .topbar .breadcrumb { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .topbar .topbar-right { flex-shrink: 0; }
 }
 @media (max-width: 850px) { .speech-indicator > span:not(.spinner) { display: none; } }
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--muted);
-  transition: background .18s, border-color .18s, color .18s;
-}
-.theme-toggle svg { width: 17px; height: 17px; }
-.theme-toggle:hover { color: var(--ink); border-color: #a78bfa; }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -334,5 +274,4 @@
 
 @media (max-width: 610px) {
   .topbar-right { gap: 8px; }
-  .theme-toggle { width: 29px; height: 29px; border-radius: 8px; }
 }

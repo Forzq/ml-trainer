@@ -52,7 +52,7 @@ def create_router(app):
     @router.post("/api/speech")
     async def speech(body: SpeechRequest):
         if body.stream:
-            iterator = app.state.speech.stream(body.text, body.tone)
+            iterator = app.state.speech.stream(body.text, body.tone, voice=body.voice)
             try:
                 first = await anext(iterator)
             except SpeechError as error:
@@ -72,7 +72,7 @@ def create_router(app):
 
             return StreamingResponse(audio_chunks(), media_type="audio/mpeg", headers={"X-Accel-Buffering": "no"})
         try:
-            audio = await app.state.speech.synthesize(body.text, body.tone)
+            audio = await app.state.speech.synthesize(body.text, body.tone, voice=body.voice)
         except SpeechError as error:
             raise HTTPException(error.status, error.detail) from None
         return Response(audio, media_type="audio/mpeg")

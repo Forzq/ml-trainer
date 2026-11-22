@@ -53,23 +53,14 @@ def checks(evaluate, audio=None, screenshot=None):
         showStart('classical_ml'); document.querySelector('#start-form').requestSubmit(); return true;
     })()""")
     wait(evaluate, "Boolean(document.querySelector('#trainer-avatar'))")
-    evaluate("trainerAvatar.show(); true")
-    evaluate("trainerAvatar.selectPreset('custom'); true")
-    wait(evaluate, "trainerAvatar.preset==='custom'")
-    for slot, color in [("neutral-closed", "#8055cc"), ("neutral-open", "#bb77ee"), ("thinking-closed", "#8888bb")]:
-        evaluate("""(() => {
-            const canvas=document.createElement('canvas'); canvas.width=200; canvas.height=240;
-            const ctx=canvas.getContext('2d'); ctx.fillStyle=%s; ctx.fillRect(20,20,160,200);
-            canvas.toBlob(blob => {
-                const input=document.querySelector('input[data-avatar-slot="%s"]');
-                const transfer=new DataTransfer(); transfer.items.add(new File([blob],'test.png',{type:'image/png'}));
-                input.files=transfer.files; input.dispatchEvent(new Event('change',{bubbles:true}));
-            }); return true;
-        })()""" % (json.dumps(color), slot))
-        wait(evaluate, f"Boolean(trainerAvatar.images['{slot}']) && !trainerAvatar.uploading")
-    evaluate("document.querySelector('#avatar-dialog').close(); true")
+    evaluate("document.querySelector('#trainer-avatar [data-action=avatar-settings]').click(); true")
+    wait(evaluate, "document.activeElement?.id==='settings-avatar'")
+    assert evaluate("document.querySelector('#avatar-preset').options.length===1 && document.querySelector('#avatar-preset').value==='marin'")
+    assert evaluate("!document.querySelector('#avatar-settings input[type=file], #avatar-preset-info')")
+    evaluate("document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "Boolean(document.querySelector('#trainer-avatar'))")
     if screenshot: screenshot()
-    print("Avatar check: image selection passed", flush=True)
+    print("Avatar check: built-in avatar settings passed", flush=True)
     evaluate("""(() => {
         window.avatarTestFetch=window.fetch;
         window.fetch=(input, options)=>String(input).includes('/api/speech')
@@ -91,30 +82,53 @@ def checks(evaluate, audio=None, screenshot=None):
     assert evaluate("trainerAvatar.audio===null && trainerAvatar.frame===null && !trainerAvatar.openMouth")
     print("Avatar check: waveform and cancellation passed", flush=True)
 
-    # States come from training activity; missing emotion frames fall back to neutral.
+    # Avatar reactions come from training activity.
     evaluate("state.busy=true; syncTrainerAvatar(); true")
     assert evaluate("document.querySelector('#trainer-avatar').dataset.reaction==='thinking'")
-    assert evaluate("document.querySelector('.avatar-closed').src.includes('thinking-closed')")
     evaluate("state.busy=false; state.config.deepgram=true; live.enabled=true; live.paused=false; live.phase='listening'; updateLiveUI(); true")
     assert evaluate("document.querySelector('#trainer-avatar').dataset.reaction==='listening'")
-    assert evaluate("document.querySelector('.avatar-closed').src.includes('neutral-closed')")
     evaluate("live.stop(); document.querySelector('#answer-input').value='Test answer'; document.querySelector('#answer-form').requestSubmit(); true")
     wait(evaluate, "state.session.reviewing && !state.busy")
     assert evaluate("document.querySelector('#trainer-avatar').dataset.reaction==='supportive'")
     evaluate("state.session.attempts[0].mode='ai'; state.session.attempts[0].score=95; syncTrainerAvatar(); true")
     assert evaluate("document.querySelector('#trainer-avatar').dataset.reaction==='positive'")
-    evaluate("trainerAvatar.show(); document.querySelector('#avatar-visible').click(); document.querySelector('#avatar-dialog').close(); true")
+    evaluate("openSettings('avatar'); true")
+    wait(evaluate, "Boolean(document.querySelector('#trainer-voice'))")
+    evaluate("""(() => {
+        window.chooseAvatarCheckVoice = (value) => {
+            const select = document.querySelector('#trainer-voice');
+            select.value = value;
+            select.dispatchEvent(new Event('change', {bubbles:true}));
+        };
+        chooseAvatarCheckVoice('male');
+        return true;
+    })()""")
+    assert evaluate("document.querySelector('#avatar-visible').disabled && document.querySelector('#avatar-visible').checked")
+    evaluate("document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "document.querySelector('#trainer-avatar')?.hidden && !trainerAvatar.rig")
+    evaluate("speak('Test male voice', {force:true}); true")
+    wait(evaluate, "speech.status==='playing'")
+    assert evaluate("!trainerAvatar.audio && document.querySelector('#trainer-avatar').hidden")
+    evaluate("openSettings('avatar'); true")
+    wait(evaluate, "Boolean(document.querySelector('#trainer-voice'))")
+    evaluate("chooseAvatarCheckVoice('female'); document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "document.querySelector('#trainer-avatar')?.hidden===false && trainerAvatar.rig?.canvas.dataset.ready==='true'")
+    evaluate("openSettings('avatar'); true")
+    wait(evaluate, "Boolean(document.querySelector('#avatar-visible'))")
+    evaluate("document.querySelector('#avatar-visible').click(); document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "Boolean(document.querySelector('#trainer-avatar'))")
     assert evaluate("document.querySelector('#trainer-avatar').hidden")
     assert evaluate("avatarCheckErrors.length===0"), evaluate("JSON.stringify(avatarCheckErrors)")
     evaluate("location.reload(); true")
-    wait(evaluate, "Boolean(document.querySelector('#trainer-avatar')) && Object.keys(trainerAvatar.images).length===3")
+    wait(evaluate, "Boolean(document.querySelector('#trainer-avatar')) && trainerAvatar.pack?.id==='marin'")
     assert evaluate("!trainerAvatar.enabled && document.querySelector('#trainer-avatar').hidden")
     print("Avatar check: reactions and persistence passed", flush=True)
     evaluate("window.avatarCheckErrors=[]; addEventListener('error', e=>avatarCheckErrors.push(e.message)); addEventListener('unhandledrejection', e=>avatarCheckErrors.push(String(e.reason))); true")
-    evaluate("trainerAvatar.show(); document.querySelector('#avatar-visible').click(); document.querySelector('#avatar-dialog').close(); true")
-    evaluate("trainerAvatar.selectPreset('marin'); true")
-    wait(evaluate, "trainerAvatar.preset==='marin' && trainerAvatar.rig?.canvas.dataset.ready==='true'")
-    assert evaluate("Object.keys(trainerAvatar.images).length===10 && document.querySelectorAll('.trainer-portrait').length===1")
+    evaluate("openSettings('avatar'); true")
+    wait(evaluate, "Boolean(document.querySelector('#avatar-visible'))")
+    evaluate("document.querySelector('#avatar-visible').click(); document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "trainerAvatar.rig?.canvas.dataset.ready==='true'")
+    assert evaluate("document.querySelectorAll('.trainer-portrait').length===1")
     evaluate("trainerAvatar.update('neutral','Test portrait'); trainerAvatar.rig.nextBlink=Infinity; true")
     if screenshot: screenshot()
     # Pose/clothing/hair outside the face must remain pixel-identical across emotions.
@@ -210,8 +224,8 @@ def main():
                 server.should_exit=True; thread.join(timeout=10)
     faulthandler.cancel_dump_traceback_later()
     print(json.dumps({"result":"passed","renderer":"WebView2" if args.desktop else "Edge", "checks":[
-        "image file selection and local persistence", "audio-driven open and closed frames at low volume", "stop closes mouth",
-        "thinking/listening/positive/supportive reactions", "missing emotion fallback", "visibility persistence",
+        "built-in avatar settings", "audio-driven open and closed mouth at low volume", "stop closes mouth",
+        "thinking/listening/positive/supportive reactions", "male voice hides avatar", "visibility persistence",
         "Marin portrait layers", "invariant clothing and pose", "no JS errors"]}))
 
 

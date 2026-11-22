@@ -16,6 +16,8 @@ function savedVolume() {
 
 const voiceTones = new Set(["natural", "calm", "very_calm_slow", "friendly", "excited", "soft", "whisper"]);
 const savedTone = storage.get("ml-voice-tone");
+const savedVoice = storage.get("ml-trainer-voice") === "male" ? "male" : "female";
 // A separate preference makes automatic narration explicit and enabled on first use.
-const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", libraryLevel: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", historyPage: 1, historyVersion: 0, recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
+const state = { config: null, session: null, busy: false, awaitingNext: false, libraryTopic: "all", libraryLevel: "all", query: "", sound: storage.get("ml-auto-speech") !== "off", volume: savedVolume(), voice: savedVoice, tone: voiceTones.has(savedTone) ? savedTone : "natural", page: "home", historyPage: 1, historyVersion: 0, recorder: null, stream: null, recordingTimer: null, toastTimer: null, searchVersion: 0 };
+const trainerVoice = () => state.config?.tts?.provider === "fish" ? state.voice : "female";
 const speech = { version: 0, controller: null, audio: null, reader: null, receiving: false, utterance: null, objectUrl: null, status: "idle", completion: null, resolve: null };

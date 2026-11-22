@@ -55,34 +55,47 @@ def main():
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(url)
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
-                assert page.locator(".topic-card").count() == 5
+                assert page.locator(".topic-card").count() == 6
+                expect(page.locator(".topic-card").filter(has_text="Системный дизайн")).to_be_visible()
                 assert page.locator(".topic-card:disabled").count() == 0
+                page.locator(".topic-card").filter(has_text="Системный дизайн").click()
+                expect(page.locator("#session-topic")).to_have_value("ml_system_design")
+                page.locator("#session-level").select_option("Middle")
+                assert page.locator("#session-count option:not([disabled])").evaluate_all(
+                    "options => options.map(option => Number(option.value))"
+                ) == [2, 4, 5]
+                page.locator("#session-level").select_option("all")
+                page.locator("#close-start").click()
                 expect(page.locator("html")).to_have_attribute("data-theme", "dark")
                 # Legacy mute must not silently disable the new default automatic narration.
                 assert page.evaluate("state.sound === true")
-                page.get_by_label("Настройки голоса", exact=True).click()
+                page.screenshot(path=str(ROOT / "logs/preview-home.png"), full_page=True)
+                settings_link = page.get_by_role("link", name="Настройки", exact=True)
+                overview_link = page.get_by_role("link", name="Обзор", exact=True)
+                back_to_training = page.get_by_role("button", name="К тренировке", exact=True)
+                settings_link.click()
+                expect(page.get_by_role("heading", name="Настройки", exact=True)).to_be_visible()
+                expect(settings_link).to_have_attribute("aria-current", "page")
                 expect(page.locator("#auto-speech")).to_be_checked()
                 page.locator("#voice-volume").evaluate("el => { el.value='35'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
                 page.locator("#auto-speech").uncheck()
+                page.locator("#live-silence").select_option("5000")
+                page.locator("#live-sensitivity").select_option("0.025")
+                page.locator("#theme-choice").select_option("light")
+                expect(page.locator("html")).to_have_attribute("data-theme", "light")
                 page.reload()
-                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
+                expect(page.locator("html")).to_have_attribute("data-theme", "light")
+                expect(page.get_by_role("heading", name="Настройки", exact=True)).to_be_visible()
                 assert page.evaluate("state.volume === 0.35 && state.sound === false")
+                assert page.evaluate("live.timing.silenceMs === 5000 && live.threshold === 0.025")
                 expect(page.locator("#voice-volume-output")).to_have_text("35%")
-                page.screenshot(path=str(ROOT / "logs/preview-home.png"), full_page=True)
-                page.get_by_role("button", name="Включить светлую тему", exact=True).click()
-                expect(page.locator("html")).to_have_attribute("data-theme", "light")
-                page.reload()
-                expect(page.locator("html")).to_have_attribute("data-theme", "light")
-                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
                 page.screenshot(path=str(ROOT / "logs/preview-light.png"), full_page=True)
-                page.get_by_role("button", name="Включить тёмную тему", exact=True).click()
+                page.locator("#theme-choice").select_option("dark")
                 page.reload()
                 expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-                expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
-                page.get_by_role("button", name="Подключения", exact=True).first.click()
                 expect(page.get_by_role("heading", name="Подключения", exact=True)).to_be_visible()
                 page.screenshot(path=str(ROOT / "logs/preview-settings.png"), full_page=True)
-                page.get_by_role("button", name="Понятно").click()
+                overview_link.click()
                 page.locator(".topic-card").first.click()
                 page.locator("#session-count").select_option("2")
                 page.get_by_role("button", name="Начать тренировку", exact=True).last.click()
@@ -130,23 +143,28 @@ def main():
                 expect(page.locator(".history-discussion")).to_have_count(2)
                 expect(page.locator(".history-discussion").first).to_contain_text("Я уже упомянул новые данные")
                 page.get_by_role("link", name="Банк вопросов").click()
-                expect(page.locator(".question-card")).to_have_count(500)
+                expect(page.locator(".question-card")).to_have_count(530)
+                page.locator("#card-search").fill("mock-interview")
+                expect(page.locator(".question-card")).to_have_count(62)
+                expect(page.locator(".question-card .tag").filter(has_text="mock-interview")).to_have_count(62)
+                page.locator("#card-search").fill("")
+                expect(page.locator(".question-card")).to_have_count(530)
                 page.screenshot(path=str(ROOT / "logs/preview-library.png"), full_page=True)
                 page.get_by_role("button", name="Классический ML", exact=True).click()
                 page.locator("#library-level").select_option("Senior")
                 expect(page.locator(".question-card")).to_have_count(20)
                 assert page.locator(".question-card-footer > .tag:first-child").all_text_contents() == ["Senior"] * 20
                 page.locator("#library-level").select_option("all")
-                expect(page.locator(".question-card")).to_have_count(100)
+                expect(page.locator(".question-card")).to_have_count(108)
                 page.locator("#card-search").fill("recall")
                 expect(page.locator(".question-card h3").filter(has_text="Precision и recall")).to_have_count(1)
                 page.locator("#card-search").fill("")
                 page.get_by_role("button", name="Data Science", exact=True).click()
-                expect(page.locator(".question-card")).to_have_count(100)
+                expect(page.locator(".question-card")).to_have_count(106)
                 page.locator("#library-level").select_option("Middle")
-                expect(page.locator(".question-card")).to_have_count(40)
+                expect(page.locator(".question-card")).to_have_count(42)
                 page.get_by_role("button", name="NLP", exact=True).click()
-                expect(page.locator(".question-card")).to_have_count(40)
+                expect(page.locator(".question-card")).to_have_count(43)
                 page.locator("#library-level").select_option("Senior")
                 expect(page.locator(".question-card")).to_have_count(20)
                 assert page.locator(".question-card > .eyebrow").all_text_contents() == ["NLP"] * 20
@@ -157,6 +175,12 @@ def main():
                 page.locator("#library-level").select_option("Middle")
                 expect(page.locator(".question-card")).to_have_count(40)
                 assert page.locator(".question-card > .eyebrow").all_text_contents() == ["DL"] * 40
+                page.get_by_role("button", name="Системный дизайн", exact=True).click()
+                expect(page.locator(".question-card")).to_have_count(5)
+                expect(page.locator(".question-card h3").filter(has_text="Скоринг при лимите одобрений")).to_be_visible()
+                page.locator("#card-search").fill("mock-interview")
+                expect(page.locator(".question-card")).to_have_count(4)
+                page.locator("#card-search").fill("")
                 # Exercise actual browser recording, with only the provider response mocked.
                 def configured(route):
                     response = route.fetch()
@@ -175,9 +199,9 @@ def main():
                         route.fulfill(json={"text": "Эм, это моя оговорка.", "raw_text": "Эм, это моя оговорка.", "cleanup": "unavailable", "provider": "whisper"})
                 page.route("**/api/transcribe", transcription_response)
                 page.goto(url)
-                page.get_by_role("button", name="Подключения", exact=True).first.click()
+                settings_link.click()
                 expect(page.locator(".connection").filter(has_text="OpenAI Whisper")).to_contain_text("Настроен")
-                page.get_by_role("button", name="Понятно").click()
+                overview_link.click()
                 page.get_by_role("button", name="Начать тренировку", exact=True).click()
                 page.locator("#session-topic").select_option("cv")
                 page.locator("#session-level").select_option("Middle")
@@ -214,33 +238,35 @@ def main():
                 wav_bytes = buffer.getvalue()
                 spoken_texts = []
                 spoken_tones = []
+                spoken_voices = []
                 def speech_response(route):
                     spoken_texts.append(route.request.post_data_json["text"])
                     spoken_tones.append(route.request.post_data_json["tone"])
+                    spoken_voices.append(route.request.post_data_json["voice"])
                     route.fulfill(body=wav_bytes, content_type="audio/wav")
                 page.route("**/api/speech", speech_response)
                 page.evaluate("state.config.tts = {provider:'fish', ready:true, voice_id:'1db1618b6eaf4571ac7db70e20eb6727', model:'s2.1-pro-free'}; syncVoiceControls()")
-                page.get_by_role("button", name="Подключения", exact=True).first.click()
+                settings_link.click()
                 page.get_by_role("button", name="Послушать голос", exact=True).click()
                 page.wait_for_function("speech.status === 'playing'")
                 assert page.evaluate("speech.audio && !speech.audio.paused")
                 assert page.evaluate("speech.audio.volume === 0.35")
-                page.get_by_role("button", name="Понятно", exact=True).click()
-                page.get_by_label("Настройки голоса", exact=True).click()
                 calls_before_volume = len(spoken_texts)
                 page.locator("#voice-volume").evaluate("el => { el.value='15'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
                 assert page.evaluate("speech.audio.volume === 0.15")
                 assert len(spoken_texts) == calls_before_volume
                 page.locator("#speech-indicator").click()
                 assert page.evaluate("speech.audio === null && speech.objectUrl === null && speech.status === 'idle'")
-                page.get_by_label("Настройки голоса", exact=True).click()
                 before_tone = len(spoken_texts)
+                page.locator("#trainer-voice").select_option("male")
+                assert page.evaluate("localStorage.getItem('ml-trainer-voice') === 'male'")
                 page.locator("#voice-tone").select_option("very_calm_slow")
                 page.screenshot(path=str(ROOT / "logs/preview-voice-controls.png"), full_page=True)
                 assert len(spoken_texts) == before_tone, "Selecting a tone must not send a synthesis request"
-                page.get_by_role("button", name="Послушать интонацию", exact=True).click()
+                page.locator(".voice-preview").click()
                 page.wait_for_function("speech.status === 'playing'")
                 assert spoken_tones[-1] == "very_calm_slow"
+                assert spoken_voices[-1] == "male" and "Я подготовил вопрос" in spoken_texts[-1]
                 page.locator("#speech-indicator").click()
                 # A delayed response that ignores AbortSignal must not start audio after cancellation.
                 page.evaluate("""() => {
@@ -260,8 +286,8 @@ def main():
                 page.wait_for_timeout(150)
                 assert page.evaluate("speech.audio === null && speech.status === 'idle'")
                 # Submit an answer and assert feedback starts without a replay-button click.
-                page.get_by_label("Настройки голоса", exact=True).click()
                 page.locator("#auto-speech").check()
+                back_to_training.click()
                 requests_before_answer = len(spoken_texts)
                 page.get_by_role("button", name="Проверить ответ", exact=True).click()
                 expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_visible()
@@ -278,22 +304,23 @@ def main():
                 feedback = page.evaluate("state.session.attempts[state.session.attempts.length-1].discussion.slice(-1)[0].reply")
                 assert spoken_texts[-1] == feedback
                 expect(page.get_by_role("button", name="Следующий вопрос", exact=True)).to_be_enabled()
-                page.get_by_label("Настройки голоса", exact=True).click()
-                page.locator("#auto-speech").uncheck()
+                page.locator('[data-action="toggle-sound"]').click()
                 assert page.evaluate("speech.status === 'idle'")
                 page.get_by_role("button", name="Озвучить сообщение", exact=True).last.click()
                 page.wait_for_function("speech.status === 'playing'")
                 assert spoken_texts[-1] == feedback
                 assert page.evaluate("state.sound === false"), "Manual replay must not turn automatic narration on"
                 page.locator("#speech-indicator").click()
-                page.get_by_label("Настройки голоса", exact=True).click()
+                settings_link.click()
                 page.locator("#voice-volume").evaluate("el => { el.value='0'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
+                back_to_training.click()
                 before_zero = len(spoken_texts)
                 page.get_by_role("button", name="Озвучить сообщение", exact=True).last.click()
                 expect(page.locator("#toast")).to_contain_text("0%")
                 assert len(spoken_texts) == before_zero
-                page.get_by_label("Настройки голоса", exact=True).click()
+                settings_link.click()
                 page.locator("#voice-volume").evaluate("el => { el.value='15'; el.dispatchEvent(new Event('input', {bubbles:true})); }")
+                back_to_training.click()
                 page.get_by_role("button", name="Завершить", exact=True).click()
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
                 page.reload()
@@ -304,6 +331,10 @@ def main():
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile layout overflows"
                 page.screenshot(path=str(ROOT / "logs/preview-mobile.png"), full_page=True)
+                settings_link.click()
+                expect(page.get_by_role("heading", name="Настройки", exact=True)).to_be_visible()
+                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile settings overflow"
+                overview_link.click()
                 # More than one history page must not truncate the home counters.
                 before_stats = httpx.get(url + "/api/stats").json()
                 with server.config.app.state.store.connect() as db:
@@ -351,7 +382,9 @@ def main():
                 with store.connect() as db:
                     ids = json.loads(db.execute("SELECT question_ids FROM sessions WHERE id=?", (session_id,)).fetchone()[0])
                 cards = [store.by_id[question_id] for question_id in ids]
-                assert Counter(card["topic_id"] for card in cards) == {topic["id"]: 4 for topic in page.evaluate("state.config.topics")}
+                topic_counts = Counter(card["topic_id"] for card in cards)
+                assert set(topic_counts) == {topic["id"] for topic in page.evaluate("state.config.topics")}
+                assert max(topic_counts.values()) - min(topic_counts.values()) <= 1
                 assert all(card["level"] == "Junior" for card in cards)
                 first_topic = page.evaluate("state.session.question.topic_id")
                 page.get_by_role("button", name="Пока не знаю — показать объяснение").click()

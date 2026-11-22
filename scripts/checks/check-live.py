@@ -91,7 +91,9 @@ def checks(evaluate, audio=None, screenshot=None):
         showStart('classical_ml');
         document.querySelector('#session-mode').value = 'live';
         document.querySelector('#session-mode').dispatchEvent(new Event('change',{bubbles:true}));
-        document.querySelector('#live-silence').value = '1800';
+        const silence = settingsPage.querySelector('#live-silence');
+        silence.value = '1800';
+        silence.dispatchEvent(new Event('change', {bubbles:true}));
         document.querySelector('#session-count').value = '2';
         true
     """ % encoded)
@@ -101,6 +103,14 @@ def checks(evaluate, audio=None, screenshot=None):
     wait(evaluate, "live.phase === 'listening' && testOpenMics() === 1")
     assert evaluate("document.querySelector('#answer-input').readOnly && speech.status === 'idle'")
     if screenshot: screenshot()
+
+    evaluate("document.querySelector('[data-page=settings]').click(); true")
+    wait(evaluate, "state.page === 'settings' && live.paused && testOpenMics() === 0")
+    evaluate("document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "Boolean(document.querySelector('[data-action=live-resume]'))")
+    assert evaluate("live.paused && state.session.current_index === 0 && testOpenMics() === 0")
+    evaluate("document.querySelector('[data-action=live-resume]').click(); true")
+    wait(evaluate, "live.phase === 'listening' && testOpenMics() === 1")
 
     def utterance():
         evaluate("testVoice(true); true")

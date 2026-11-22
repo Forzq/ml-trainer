@@ -27,7 +27,7 @@ def test_question_priority_within_topics_survives_mixing():
     cards = [card for index, topic in enumerate(TOPICS)
              for card in cards_for(topic["id"], 4, index * 100)]
     counts = {card["id"]: {1: 9, 2: 5, 3: 0, 4: 0}[card["id"] % 100] for card in cards}
-    selected = select_questions(cards, counts, 20)
+    selected = select_questions(cards, counts, len(cards))
     for index, topic in enumerate(TOPICS):
         ids = [card["id"] for card in selected if card["topic_id"] == topic["id"]]
         assert ids == [index * 100 + number for number in [3, 4, 2, 1]]

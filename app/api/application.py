@@ -43,7 +43,7 @@ def create_app(settings: Settings | None = None):
     app = FastAPI(title="ML Trainer", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.settings = settings
     install_security(app)
-    app.include_router(avatar_router(settings.data_dir))
+    app.include_router(avatar_router())
     for module in (system, catalog, history, sessions, audio):
         app.include_router(module.create_router(app))
 
