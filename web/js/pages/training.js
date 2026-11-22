@@ -6,6 +6,7 @@ function showStart(topic = "all") {
   $("#session-topic").value = topic;
   const candidateLevel = storage.get("ml-candidate-level");
   $("#candidate-level").value = ["Junior", "Middle", "Senior"].includes(candidateLevel) ? candidateLevel : "Middle";
+  $("#prioritize-interviews").checked = storage.get("ml-interview-priority") !== "off";
   updateSessionCounts();
   $("#start-dialog").showModal();
 }
@@ -53,8 +54,13 @@ async function startSession(event) {
       await api(`/sessions/${state.session.id}/finish`, { method: "POST" });
     }
     const candidateLevel = $("#candidate-level").value;
-    applySession(await api("/sessions", { method: "POST", body: { topic: $("#session-topic").value, level: $("#session-level").value, candidate_level: candidateLevel, count: Number($("#session-count").value) || 1 } }));
+    const prioritizeInterviews = $("#prioritize-interviews").checked;
+    applySession(await api("/sessions", { method: "POST", body: {
+      topic: $("#session-topic").value, level: $("#session-level").value, candidate_level: candidateLevel,
+      count: Number($("#session-count").value) || 1, prioritize_interviews: prioritizeInterviews,
+    } }));
     storage.set("ml-candidate-level", candidateLevel);
+    storage.set("ml-interview-priority", prioritizeInterviews ? "on" : "off");
     storage.set("ml-session", state.session.id);
     state.awaitingNext = false;
     $("#start-dialog").close();
@@ -92,7 +98,7 @@ function renderTraining() {
   const nextPanel = reviewing ? `<div class="next-panel"><p>Есть вопросы к разбору? Обсуди их с тренером.</p><button class="button primary" data-action="next" id="next-question">${lastQuestion ? "Итоги тренировки" : "Следующий вопрос"} ${icon("arrow")}</button></div>` : "";
   const composer = `<form class="composer ${reviewing ? "discussion-composer" : ""}" id="answer-form"><label class="sr-only" for="answer-input">${reviewing ? "Сообщение тренеру" : "Твой ответ"}</label><textarea id="answer-input" maxlength="12000" placeholder="${reviewing ? "Задай вопрос или уточни свой ответ…" : "Напиши ответ или запиши его голосом…"}">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">${reviewing ? "Отправить" : "Проверить ответ"} ${icon("arrow")}</button></div><div class="composer-actions">${reviewing ? '<span class="composer-footnote">Обсуждаем текущий вопрос</span>' : '<button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button>'}<span class="composer-footnote">Ctrl + Enter</span></div>${!state.config.ai ? '<p class="composer-footnote">Демо-проверка по ключевым словам · оценка понимания недоступна</p>' : ""}</form>`;
   setPage(`
-    <div class="page-title"><div><h1>Тренировка</h1><p>${escapeHTML(topic)} · ${escapeHTML(question.level)}</p></div><button class="button small" data-action="finish">Завершить</button></div>
+    <div class="page-title"><div><h1>Тренировка</h1><p>${escapeHTML(topic)} · ${escapeHTML(question.level)} ${interviewFrequencyHTML(question.interview_frequency)}</p></div><button class="button small" data-action="finish">Завершить</button></div>
     <div class="training-layout"><section class="chat-panel"><div id="live-panel" class="live-panel"></div><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${reviewing ? "Обсуждаем вопрос" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
     ${followupsHTML(question)}${nextPanel}${composer}</section>
     <aside class="training-side"><div id="trainer-avatar"></div><div class="side-card"><h3>Твоя практика</h3><div class="progress-number">${session.answered} <span>/ ${session.total}</span></div><div class="progress-track"><div style="width:${100 * session.answered / session.total}%"></div></div><small>вопросов разобрано</small><div class="session-topic">${escapeHTML(topicName(session.topic))}</div></div></aside></div>

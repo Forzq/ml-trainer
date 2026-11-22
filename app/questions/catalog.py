@@ -19,10 +19,17 @@ TOPICS = [
 ]
 LEGACY_TOPICS = {"fundamentals": "classical_ml", "metrics": "classical_ml", "linear": "classical_ml"}
 MOCK_INTERVIEW_TAG = "mock-interview"
+GITHUB_QUESTION_TAG = "github_ques"
+SOURCE_TAGS = frozenset((MOCK_INTERVIEW_TAG, GITHUB_QUESTION_TAG))
 
 
 def canonical_topic(topic: str) -> str:
     return LEGACY_TOPICS.get(topic, topic)
+
+
+def has_interview_recording(card: dict) -> bool:
+    return any(source.get("format", "mock") in {"mock", "interview-review", "real-interview"}
+               for source in card.get("mock_sources", []))
 
 
 class Criterion(BaseModel):
@@ -39,7 +46,7 @@ class MockInterviewSource(BaseModel):
     start_seconds: int = Field(ge=0)
     end_seconds: int = Field(gt=0)
     interviewer_summary: str = Field(min_length=15, max_length=1200)
-    format: Literal["mock", "expert-review", "interview-review"] = Field(
+    format: Literal["mock", "expert-review", "interview-review", "real-interview"] = Field(
         default="mock", exclude_if=lambda value: value == "mock",
     )
 
@@ -51,6 +58,11 @@ class MockInterviewSource(BaseModel):
         return self
 
 
+class GitHubQuestionSource(BaseModel):
+    url: str = Field(pattern=r"^https://github\.com/[^/\s]+/[^/\s]+/blob/[^\s]+$")
+    collection: str = Field(min_length=3, max_length=200)
+
+
 class Question(BaseModel):
     id: int = Field(gt=0)
     topic_id: str
@@ -58,12 +70,14 @@ class Question(BaseModel):
     title: str = Field(min_length=3)
     question: str = Field(min_length=15)
     level: Literal["Junior", "Middle", "Senior"]
+    interview_frequency: int | None = Field(default=None, strict=True, ge=1, le=3, exclude_if=lambda value: value is None)
     tags: list[str] = Field(min_length=1)
     reference: str = Field(min_length=60, max_length=6000)
     criteria: list[Criterion] = Field(min_length=2, max_length=6)
     followups: list[str] = Field(default_factory=list, max_length=8)
     rubric_version: str
     mock_sources: list[MockInterviewSource] = Field(default_factory=list, exclude_if=lambda sources: not sources)
+    github_sources: list[GitHubQuestionSource] = Field(default_factory=list, exclude_if=lambda sources: not sources)
 
     @model_validator(mode="after")
     def valid_rubric(self):
@@ -73,6 +87,8 @@ class Question(BaseModel):
             raise ValueError("Empty followup")
         if bool(self.mock_sources) != (MOCK_INTERVIEW_TAG in self.tags):
             raise ValueError("The mock-interview tag requires a video source")
+        if bool(self.github_sources) != (GITHUB_QUESTION_TAG in self.tags):
+            raise ValueError("The github_ques tag requires a GitHub source")
         return self
 
 

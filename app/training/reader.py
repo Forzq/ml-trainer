@@ -3,14 +3,15 @@ import json
 
 from app.training.errors import TrainingError
 
-from app.questions.catalog import TOPICS, canonical_topic
+from app.questions.catalog import TOPICS, canonical_topic, has_interview_recording
 from app.questions.rubric import prepare_card
 
 
 def public_card(card):
     """Expose question context without leaking its reference or grading criteria."""
     return {**{key: card[key] for key in ("id", "topic_id", "topic", "title", "question", "level", "tags")},
-            "followups": card.get("followups", []), "rubric_version": card.get("rubric_version")}
+            "followups": card.get("followups", []), "rubric_version": card.get("rubric_version"),
+            "interview_frequency": card.get("interview_frequency"), "from_interview": has_interview_recording(card)}
 
 
 class SessionReader:

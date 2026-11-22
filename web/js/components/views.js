@@ -4,6 +4,13 @@
 const icon = (name) => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const escapeHTML = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 
+function interviewFrequencyHTML(rating) {
+  const frequency = { 1: "редко", 2: "периодически", 3: "очень часто" }[rating];
+  if (!frequency) return "";
+  const label = `Оценка частоты на собеседованиях — ${frequency}, ${rating} из 3`;
+  return `<span class="interview-frequency" role="img" aria-label="${label}" title="${label}"><span>${"★".repeat(rating)}</span><span class="frequency-empty">${"☆".repeat(3 - rating)}</span></span>`;
+}
+
 function messageHTML(kind, text, extra = "", speech = false) {
   return `<div class="message ${kind}"><span class="message-avatar">${kind === "user" ? "Я" : "✳"}</span><div class="message-body"><div class="message-name">${kind === "user" ? "ТВОЙ ОТВЕТ" : "ML-ТРЕНЕР"}${speech ? `<button class="icon-button" data-action="speak" data-text="${escapeHTML(text)}" aria-label="Озвучить сообщение">${icon("sound")}</button>` : ""}</div><div class="message-text">${escapeHTML(text)}</div>${extra}</div></div>`;
 }

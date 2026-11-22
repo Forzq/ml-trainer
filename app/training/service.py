@@ -27,7 +27,7 @@ class TrainingService:
         # Balance eligible topics and prefer less-practiced cards within each topic.
         with store.connect() as db:
             counts = dict(db.execute("SELECT question_id, COUNT(*) FROM attempts GROUP BY question_id"))
-            selected = select_questions(selected, counts, body.count)
+            selected = select_questions(selected, counts, body.count, prioritize_interviews=body.prioritize_interviews)
             session_id = str(uuid.uuid4())
             profile = {"candidate_level": body.candidate_level, "specialization": next((t["name"] for t in TOPICS if t["id"] == body.topic), "Общий ML / Data Science")}
             snapshots = {str(card["id"]): card for card in selected}

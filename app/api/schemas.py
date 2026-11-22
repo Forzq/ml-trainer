@@ -9,6 +9,7 @@ class NewSession(BaseModel):
     level: Literal["all", "Junior", "Middle", "Senior"] = "all"
     candidate_level: Literal["Junior", "Middle", "Senior"] = "Middle"
     count: int = Field(default=4, ge=1, le=20)
+    prioritize_interviews: bool = False
 
 class Answer(BaseModel):
     question_id: int

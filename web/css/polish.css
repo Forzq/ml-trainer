@@ -17,6 +17,13 @@
 .page-title p { font-size: 13px; }
 .question-card h3 { font-size: 17px; line-height: 1.45; }
 .question-card-footer { flex-wrap: wrap; gap: 8px; }
+.question-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.interview-frequency { display: inline-flex; color: #f2bc68; font-size: 14px; letter-spacing: .08em; white-space: nowrap; }
+[data-theme="light"] .interview-frequency { color: #875407; }
+.frequency-empty { color: var(--muted); }
+.page-title .interview-frequency { margin-left: 8px; }
+.interview-priority { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 12px 0; }
+.interview-priority input { accent-color: var(--accent); }
 .search-note { font-size: 12px; color: var(--muted); }
 .empty-state { grid-column: 1 / -1; }
 .empty-state p, .history-item p { font-size: 12px; }

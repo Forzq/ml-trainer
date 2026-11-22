@@ -2,7 +2,7 @@
 import hashlib
 import threading
 from qdrant_client import QdrantClient, models
-from app.questions.catalog import MOCK_INTERVIEW_TAG
+from app.questions.catalog import SOURCE_TAGS
 
 
 class QuestionIndex:
@@ -30,7 +30,7 @@ class QuestionIndex:
             if existing == self.by_id:
                 return
             def text(card):
-                keywords = " ".join(tag for tag in card["tags"] if tag != MOCK_INTERVIEW_TAG)
+                keywords = " ".join(tag for tag in card["tags"] if tag not in SOURCE_TAGS)
                 return " ".join([card["topic"], card["title"], card["question"], keywords])
             changed = [card for card in self.cards
                        if card["id"] not in existing or text(existing[card["id"]]) != text(card)]
@@ -62,8 +62,9 @@ class QuestionIndex:
         if level != "all":
             conditions.append(models.FieldCondition(key="level", match=models.MatchValue(value=level)))
         query = query.strip()
-        if query.casefold() == MOCK_INTERVIEW_TAG:
-            conditions.append(models.FieldCondition(key="tags", match=models.MatchValue(value=MOCK_INTERVIEW_TAG)))
+        exact_tag = query.casefold()
+        if exact_tag in SOURCE_TAGS:
+            conditions.append(models.FieldCondition(key="tags", match=models.MatchValue(value=exact_tag)))
             query = ""
         filters = models.Filter(must=conditions) if conditions else None
         with self.lock:

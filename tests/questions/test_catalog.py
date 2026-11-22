@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.questions.catalog import MOCK_INTERVIEW_TAG, TOPICS, load_cards
+from app.questions.catalog import GITHUB_QUESTION_TAG, MOCK_INTERVIEW_TAG, TOPICS, load_cards
 from app.search.embeddings import Embeddings
 from app.server import create_app
 from app.storage.store import Store
@@ -25,9 +25,10 @@ def test_bank_preserves_the_original_ids_and_topic_distribution():
     assert [card["title"] for card in cards[:6]] == ["Переобучение", "Разделение данных", "Precision и recall",
                                                     "Дисбаланс классов", "Линейная регрессия", "Регуляризация"]
     assert len({card["question"].casefold() for card in cards}) == len(cards)
+    assert {card["interview_frequency"] for card in cards} == {1, 2, 3}
 
 
-@pytest.mark.parametrize("failure", ["duplicate_id", "duplicate_question", "bad_level", "bad_topic", "missing_reference"])
+@pytest.mark.parametrize("failure", ["duplicate_id", "duplicate_question", "bad_level", "bad_topic", "bad_frequency", "missing_reference"])
 def test_invalid_catalog_is_rejected(tmp_path, failure):
     cards = load_cards()[:2]
     if failure == "duplicate_id":
@@ -38,6 +39,8 @@ def test_invalid_catalog_is_rejected(tmp_path, failure):
         cards[0]["level"] = "Basic"
     elif failure == "bad_topic":
         cards[0]["topic_id"] = "unknown"
+    elif failure == "bad_frequency":
+        cards[0]["interview_frequency"] = 4
     else:
         cards[0].pop("reference")
     path = tmp_path / "questions.json"
@@ -61,6 +64,7 @@ def test_topic_and_level_filters_apply_to_search_and_sessions(tmp_path):
                 count = level_counts[topic, level]
                 rows = client.get("/api/cards", params={"topic": topic, "level": level}).json()["cards"]
                 assert len(rows) == count and all(card["level"] == level and card["topic_id"] == topic for card in rows)
+                assert all(card["interview_frequency"] in (1, 2, 3) for card in rows)
                 assert all("reference" not in card and "criteria" not in card for card in rows)
                 found = client.get("/api/cards", params={"q": "оценка", "level": level, "topic": topic}).json()["cards"]
                 assert found and all(card["level"] == level and card["topic_id"] == topic for card in found)
@@ -77,20 +81,24 @@ def test_topic_and_level_filters_apply_to_search_and_sessions(tmp_path):
         assert client.post("/api/sessions", headers=headers, json={"level": "Expert"}).status_code == 422
 
 
-def test_mock_interview_filter_uses_qdrant_payload_and_keeps_the_reference_private(tmp_path):
+@pytest.mark.parametrize(("tag", "source_field"), [
+    (MOCK_INTERVIEW_TAG, "mock_sources"), (GITHUB_QUESTION_TAG, "github_sources"),
+])
+def test_source_tags_filter_qdrant_without_returning_references(tmp_path, tag, source_field):
     cards = load_cards()
-    expected = [card for card in cards if MOCK_INTERVIEW_TAG in card["tags"]]
+    expected = [card for card in cards if tag in card["tags"]]
+    unrelated = next(card for card in cards if tag not in card["tags"])
     assert any(card["id"] <= 500 for card in expected)
     assert any(card["id"] > 500 for card in expected)
-    with patch("app.storage.store.load_cards", return_value=expected + [cards[1]]), TestClient(create_app(settings_at(tmp_path))) as client:
+    with patch("app.storage.store.load_cards", return_value=expected + [unrelated]), TestClient(create_app(settings_at(tmp_path))) as client:
         with patch.object(Embeddings, "encode", side_effect=AssertionError("An exact tag lookup should not call embeddings")):
-            rows = client.get("/api/cards", params={"q": " MOCK-INTERVIEW "}).json()["cards"]
-            filtered = client.get("/api/cards", params={"q": MOCK_INTERVIEW_TAG, "topic": "nlp", "level": "Middle"}).json()["cards"]
+            rows = client.get("/api/cards", params={"q": f" {tag.upper()} "}).json()["cards"]
+            filtered = client.get("/api/cards", params={"q": tag, "topic": "nlp", "level": "Middle"}).json()["cards"]
         assert [row["id"] for row in rows] == sorted(card["id"] for card in expected)
         assert [row["id"] for row in filtered] == sorted(card["id"] for card in expected if card["topic_id"] == "nlp" and card["level"] == "Middle")
-        assert all({"reference", "criteria", "mock_sources"}.isdisjoint(row) for row in rows)
-        persisted = client.app.state.store.search(MOCK_INTERVIEW_TAG)
-        assert all(row["mock_sources"] and row["reference"] for row in persisted)
+        assert all({"reference", "criteria", "mock_sources", "github_sources"}.isdisjoint(row) for row in rows)
+        persisted = client.app.state.store.search(tag)
+        assert all(row[source_field] and row["reference"] for row in persisted)
 
 
 def test_pagination_beyond_100_and_unchanged_seed_does_not_reembed(tmp_path):
@@ -127,7 +135,8 @@ def test_expansion_only_embeds_new_text_and_payload_edits_preserve_vectors(tmp_p
             assert store.vectors.retrieve(store.collection, ids=[1], with_vectors=True)[0].vector == pytest.approx(vector, rel=1e-6, abs=1e-8)
         finally:
             store.close()
-    changed = [dict(card, reference=card["reference"] + " Дополнение к ориентиру.") for card in expansion]
+    changed = [dict(card, reference=card["reference"] + " Дополнение к ориентиру.", interview_frequency=1)
+               for card in expansion]
     with patch("app.storage.store.load_cards", return_value=changed), patch("app.search.embeddings.Embeddings.encode", side_effect=AssertionError("Metadata edit must reuse vectors")):
         store = Store(settings_at(tmp_path))
         try:

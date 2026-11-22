@@ -55,3 +55,15 @@ def test_single_topic_keeps_less_practiced_question_order():
     cards = cards_for("classical_ml", 4)
     selected = select_questions(cards, {1: 5, 2: 1}, 3)
     assert [card["id"] for card in selected] == [3, 4, 2]
+
+
+def test_interview_priority_preserves_practice_rotation_and_uses_frequency():
+    cards = [
+        dict(id=1, topic_id="nlp", interview_frequency=3, mock_sources=[{"format": "expert-review"}]),
+        dict(id=2, topic_id="nlp", interview_frequency=2, mock_sources=[{}]),
+        dict(id=3, topic_id="nlp", interview_frequency=3, mock_sources=[{"format": "real-interview"}]),
+        dict(id=4, topic_id="nlp", interview_frequency=1),
+    ]
+    assert [c["id"] for c in select_questions(cards, {}, 4, prioritize_interviews=True)] == [3, 2, 1, 4]
+    assert [c["id"] for c in select_questions(cards, {3: 1}, 4, prioritize_interviews=True)] == [2, 1, 4, 3]
+    assert [c["id"] for c in select_questions(cards, {}, 4)] == [1, 2, 3, 4]
