@@ -105,7 +105,7 @@ class DesktopApi:
 
             self._window.native.BeginInvoke(Action(lambda: set_native_theme(self._window, theme)))
 
-def open_window(server, on_loaded=None, profile_path=None):
+def open_window(server, on_loaded=None, profile_path=None, *, title=TITLE):
     import webview
 
     # App-owned audio should play after an asynchronous TTS request as well as a click.
@@ -114,7 +114,7 @@ def open_window(server, on_loaded=None, profile_path=None):
         os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = browser_args + " --autoplay-policy=no-user-gesture-required"
     api = DesktopApi()
     window = webview.create_window(
-        TITLE, server.url, js_api=api, width=1320, height=900, min_size=(900, 650),
+        title, server.url, js_api=api, width=1320, height=900, min_size=(900, 650),
         background_color="#101017", text_select=True,
     )
     api._window = window

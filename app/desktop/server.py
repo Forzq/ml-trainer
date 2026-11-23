@@ -12,7 +12,8 @@ LOG = logging.getLogger("ml-trainer.desktop")
 
 def healthy(url=URL):
     try:
-        with urllib.request.urlopen(url + "/api/health", timeout=1) as response:
+        direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with direct.open(url + "/api/health", timeout=1) as response:
             return json.load(response).get("app") == "ml-trainer"
     except (OSError, ValueError, urllib.error.URLError):
         return False

@@ -3,9 +3,10 @@ import ctypes
 import time
 
 TITLE = "ML Trainer"
+MUTEX_NAME = "Local\\MLTrainerDesktopV1"
 
 class SingleInstance:
-    def __init__(self, name="Local\\MLTrainerDesktopV1"):
+    def __init__(self, name=MUTEX_NAME):
         self.name = name
         self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         self.kernel.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
@@ -24,7 +25,7 @@ class SingleInstance:
             self.kernel.CloseHandle(self.handle)
             self.handle = None
 
-def focus_existing():
+def focus_existing(title=TITLE):
     user = ctypes.windll.user32
     user.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
     user.FindWindowW.restype = ctypes.c_void_p
@@ -32,7 +33,7 @@ def focus_existing():
     user.IsIconic.argtypes = [ctypes.c_void_p]
     user.SetForegroundWindow.argtypes = [ctypes.c_void_p]
     for _ in range(75):
-        handle = user.FindWindowW(None, TITLE)
+        handle = user.FindWindowW(None, title)
         if handle:
             if user.IsIconic(handle):
                 user.ShowWindow(handle, 9)
