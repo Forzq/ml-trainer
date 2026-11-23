@@ -1,4 +1,4 @@
-"""OpenRouter transport and safe completion diagnostics shared by trainer operations."""
+"""OpenAI-compatible transport and safe completion diagnostics."""
 import json
 import logging
 import re
@@ -55,15 +55,22 @@ def log_model_failure(operation, model, question_id, error):
                 error.response.status_code if isinstance(error, httpx.HTTPStatusError) else None)
 
 
-def chat_completion(settings, messages, *, operation, parse, json_mode=False):
-    """Send one completion and parse it without logging private content."""
-    payload = {"model": settings.model, "messages": messages, "max_tokens": 2000}
+def completion_payload(settings, model, messages, *, max_tokens, json_mode):
+    payload = {"model": model, "messages": messages, "max_tokens": max_tokens}
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
+    if settings.llm_base_url in ("https://api.deepseek.com", "https://api.deepseek.com/v1"):
+        payload["thinking"] = {"type": "disabled"}
+    return payload
+
+
+def chat_completion(settings, messages, *, operation, parse, json_mode=False):
+    """Send one completion and parse it without logging private content."""
+    model = settings.trainer_model_name
     with httpx.Client(timeout=90) as client:
         response = client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {settings.openrouter_key}"},
-            json=payload,
+            settings.completion_url,
+            headers={"Authorization": f"Bearer {settings.completion_key}"},
+            json=completion_payload(settings, model, messages, max_tokens=2000, json_mode=json_mode),
         )
-        return completion_content(response, operation, settings.model, parse)
+        return completion_content(response, operation, model, parse)

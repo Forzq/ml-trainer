@@ -55,7 +55,7 @@ class TrainingService:
                 try:
                     result = self.evaluate(card, text, self.settings, profile=state["profile"], voice=body.voice)
                 except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
-                    log_model_failure("evaluate", self.settings.model, body.question_id, error)
+                    log_model_failure("evaluate", self.settings.trainer_model_name, body.question_id, error)
                     raise TrainingError(502, "Модель не смогла проверить ответ. Проверь ключ, баланс и название модели. Ответ сохранён в поле ввода; можно повторить запрос.")
             with self.store.connect() as db:
                 db.execute("INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES(?,?,?,?,?,?)",
@@ -77,7 +77,7 @@ class TrainingService:
                 card = self.reader.card(session_id, body.question_id)
                 result = self.discuss(card, attempt, text, self.settings, profile=state["profile"], voice=body.voice)
             except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
-                log_model_failure("discuss", self.settings.model, body.question_id, error)
+                log_model_failure("discuss", self.settings.trainer_model_name, body.question_id, error)
                 raise TrainingError(502, "Тренер не смог ответить. Сообщение осталось в поле ввода; можно отправить ещё раз.")
             with self.store.connect() as db:
                 db.execute("INSERT INTO discussions(session_id,question_id,message,reply,mode) VALUES(?,?,?,?,?)",

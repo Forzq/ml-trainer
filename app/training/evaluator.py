@@ -24,7 +24,7 @@ def evaluate(card: dict, answer: str, settings: Settings, profile: dict | None =
         return chat_completion(
             settings, messages, operation="evaluate", json_mode=True,
             parse=lambda content: score_evaluation(
-                card, Evaluation.model_validate_json(content), settings.model, profile),
+                card, Evaluation.model_validate_json(content), settings.trainer_model_name, profile),
         )
     # Explicitly a demo: keyword matching is not a knowledge assessment.
     words = re.sub(r"[^\w\s]", " ", answer.lower().replace("ё", "е"))
@@ -45,7 +45,7 @@ def evaluate(card: dict, answer: str, settings: Settings, profile: dict | None =
 def discuss(card: dict, attempt: dict, message: str, settings: Settings, profile: dict | None = None,
             *, voice: TrainerVoice = "female") -> dict:
     if not settings.ai_enabled:
-        return {"reply": "Демо-режим: для полноценного обсуждения и проверки твоих возражений подключи модель через OpenRouter. "
+        return {"reply": "Демо-режим: для полноценного обсуждения и проверки твоих возражений подключи модель в настройках сервера. "
                          "Ориентир по текущему вопросу: " + card["reference"], "mode": "demo"}
     context = {
         "profile": profile or attempt.get("profile") or {"candidate_level": "Middle", "specialization": card.get("topic", "ML")},

@@ -6,6 +6,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app.core.config import Settings
+from app.integrations.openrouter import completion_payload
 
 
 class CleanTranscript(BaseModel):
@@ -45,14 +46,17 @@ async def clean_transcript(text: str, settings: Settings, context: dict | None =
     if context:
         # No reference answer, criteria, feedback or discussion are sent to this editor.
         data["context"] = {key: context[key] for key in ("question", "topic", "tags") if key in context}
+    messages = [
+        {"role": "system", "content": INSTRUCTIONS},
+        {"role": "user", "content": json.dumps(data, ensure_ascii=False)},
+    ]
     async with httpx.AsyncClient(timeout=httpx.Timeout(35, connect=10)) as client:
         response = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {settings.openrouter_key}"},
-            json={"model": settings.transcription_model_name, "messages": [
-                {"role": "system", "content": INSTRUCTIONS},
-                {"role": "user", "content": json.dumps(data, ensure_ascii=False)},
-            ], "response_format": {"type": "json_object"}, "max_tokens": 6000},
+            settings.completion_url,
+            headers={"Authorization": f"Bearer {settings.completion_key}"},
+            json=completion_payload(
+                settings, settings.transcription_model_name, messages, max_tokens=6000, json_mode=True,
+            ),
         )
         response.raise_for_status()
         choice = response.json()["choices"][0]

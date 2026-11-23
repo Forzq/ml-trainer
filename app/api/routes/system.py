@@ -18,7 +18,7 @@ def create_router(app):
         store = app.state.store
         return {
             "token": app.state.token, "ai": settings.ai_enabled,
-            "deepgram": bool(settings.deepgram_key), "model": settings.model,
+            "deepgram": bool(settings.deepgram_key), "model": settings.trainer_model_name,
             "whisper": bool(settings.openai_key), "whisper_model": settings.openai_transcription_model,
             "transcription": {"ready": settings.transcription_enabled, "model": settings.transcription_model_name},
             "tts": {"provider": settings.tts_provider, "ready": settings.fish_enabled,

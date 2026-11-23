@@ -38,12 +38,18 @@ def transcribe(client, **kwargs):
                        files={"audio": ("answer.webm", b"test-audio", "audio/webm")}, **kwargs)
 
 
-def test_voice_cleanup_uses_same_model_and_only_public_question_context(tmp_path):
+@pytest.mark.parametrize("direct", [False, True])
+def test_voice_cleanup_uses_same_model_and_only_public_question_context(tmp_path, direct):
+    settings = settings_at(tmp_path)
+    if direct:
+        settings.llm_base_url = "https://api.deepseek.com"
+        settings.llm_api_key = "private-deepseek"
+        settings.llm_model = "deepseek-flash"
     requests = []
     def respond(request):
         requests.append(request)
         return recognized(RAW) if request.url.host == "api.deepgram.com" else edited()
-    with TestClient(create_app(settings_at(tmp_path))) as client, provider(respond):
+    with TestClient(create_app(settings)) as client, provider(respond):
         headers = {"X-App-Token": client.get("/api/config").json()["token"]}
         state = client.post("/api/sessions", headers=headers, json={"topic": "classical_ml", "count": 1}).json()
         response = transcribe(client, data={"session_id": state["id"], "question_id": state["question"]["id"]})
@@ -53,9 +59,15 @@ def test_voice_cleanup_uses_same_model_and_only_public_question_context(tmp_path
         assert requests[0].content == b"test-audio"
         assert requests[0].headers["authorization"] == "Token private-deepgram"
         request = requests[1]
-        assert request.headers["authorization"] == "Bearer private-openrouter"
         data = json.loads(request.content)
-        assert data["model"] == "same-trainer-model"
+        if direct:
+            assert str(request.url) == "https://api.deepseek.com/chat/completions"
+            assert request.headers["authorization"] == "Bearer private-deepseek"
+            assert data["model"] == "deepseek-flash" and data["thinking"] == {"type": "disabled"}
+        else:
+            assert str(request.url) == "https://openrouter.ai/api/v1/chat/completions"
+            assert request.headers["authorization"] == "Bearer private-openrouter"
+            assert data["model"] == "same-trainer-model" and "thinking" not in data
         context = json.loads(data["messages"][1]["content"])
         assert context["transcript"] == RAW
         assert context["context"] == {key: state["question"][key] for key in ("question", "topic", "tags")}

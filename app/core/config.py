@@ -29,6 +29,10 @@ class Settings:
     fish_model: str = os.getenv("FISH_AUDIO_MODEL", "s2.1-pro-free")
     fish_latency: str = os.getenv("FISH_AUDIO_LATENCY", "low")
     fish_male_voice_id: str = os.getenv("FISH_AUDIO_MALE_VOICE_ID") or "de9a2c99fcee4dfbbaec90327eab36d8"
+    llm_base_url: str = os.getenv("LLM_BASE_URL", "").strip().rstrip("/")
+    llm_api_key: str = os.getenv("LLM_API_KEY", "")
+    llm_model: str = os.getenv("LLM_MODEL", "")
+    llm_transcription_model: str = os.getenv("LLM_TRANSCRIPTION_MODEL", "")
 
     def fish_voice_for(self, voice: TrainerVoice) -> str:
         return self.fish_male_voice_id if voice == "male" else self.fish_voice_id
@@ -38,16 +42,29 @@ class Settings:
         return bool(self.deepgram_key or self.openai_key)
 
     @property
+    def completion_url(self) -> str:
+        return f"{self.llm_base_url or 'https://openrouter.ai/api/v1'}/chat/completions"
+
+    @property
+    def completion_key(self) -> str:
+        return self.llm_api_key if self.llm_base_url else self.openrouter_key
+
+    @property
+    def trainer_model_name(self) -> str:
+        return self.llm_model if self.llm_base_url else self.model
+
+    @property
     def ai_enabled(self) -> bool:
-        return bool(self.openrouter_key and self.model)
+        return bool(self.completion_key and self.trainer_model_name)
 
     @property
     def transcription_model_name(self) -> str:
-        return self.transcription_model or self.model
+        editor = self.llm_transcription_model if self.llm_base_url else self.transcription_model
+        return editor or self.trainer_model_name
 
     @property
     def transcription_enabled(self) -> bool:
-        return bool(self.openrouter_key and self.transcription_model_name)
+        return bool(self.completion_key and self.transcription_model_name)
 
     @property
     def fish_enabled(self) -> bool:

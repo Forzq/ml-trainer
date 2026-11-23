@@ -1,11 +1,13 @@
 import json
 import logging
+from unittest.mock import patch
 
 import httpx
 import pytest
 
 from app.questions.rubric import Evaluation
-from app.integrations.openrouter import completion_content, log_model_failure
+from app.core.config import Settings
+from app.integrations.openrouter import chat_completion, completion_content, log_model_failure
 
 
 def response_with(content, finish_reason="stop"):
@@ -69,3 +71,29 @@ def test_valid_completion_retains_evaluation_and_does_not_log_warning(caplog):
     result = completion_content(response_with(content), "evaluate", "test-model", Evaluation.model_validate_json)
     assert result.criterion_results[0].credit == 3 and result.criterion_results[0].status == "partial"
     assert not caplog.records
+
+
+def test_direct_deepseek_uses_its_own_key_model_and_options():
+    settings = Settings(openrouter_key="old-key", model="old-model", llm_base_url="https://api.deepseek.com",
+                        llm_api_key="deepseek-key", llm_model="deepseek-flash")
+    client_class = httpx.Client
+    messages = [{"role": "user", "content": "Return JSON."}]
+
+    def respond(request):
+        assert str(request.url) == "https://api.deepseek.com/chat/completions"
+        assert request.headers["authorization"] == "Bearer deepseek-key"
+        assert json.loads(request.content) == {
+            "model": "deepseek-flash", "messages": messages, "max_tokens": 2000,
+            "response_format": {"type": "json_object"}, "thinking": {"type": "disabled"},
+        }
+        return response_with('{"feedback":"OK"}')
+
+    with patch("app.integrations.openrouter.httpx.Client", side_effect=lambda **kwargs: client_class(
+        transport=httpx.MockTransport(respond), **kwargs
+    )):
+        assert chat_completion(settings, messages, operation="evaluate", parse=json.loads, json_mode=True) == {
+            "feedback": "OK",
+        }
+
+    settings.llm_api_key = ""
+    assert not settings.ai_enabled and not settings.transcription_enabled
