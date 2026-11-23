@@ -33,6 +33,7 @@ class Settings:
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
     llm_model: str = os.getenv("LLM_MODEL", "")
     llm_transcription_model: str = os.getenv("LLM_TRANSCRIPTION_MODEL", "")
+    openrouter_proxy_url: str = os.getenv("OPENROUTER_PROXY_URL", "").strip()
 
     def fish_voice_for(self, voice: TrainerVoice) -> str:
         return self.fish_male_voice_id if voice == "male" else self.fish_voice_id
@@ -48,6 +49,10 @@ class Settings:
     @property
     def completion_key(self) -> str:
         return self.llm_api_key if self.llm_base_url else self.openrouter_key
+
+    @property
+    def completion_proxy(self) -> str | None:
+        return None if self.llm_base_url else self.openrouter_proxy_url or None
 
     @property
     def trainer_model_name(self) -> str:

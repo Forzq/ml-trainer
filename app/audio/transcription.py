@@ -50,7 +50,7 @@ async def clean_transcript(text: str, settings: Settings, context: dict | None =
         {"role": "system", "content": INSTRUCTIONS},
         {"role": "user", "content": json.dumps(data, ensure_ascii=False)},
     ]
-    async with httpx.AsyncClient(timeout=httpx.Timeout(35, connect=10)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(35, connect=10), proxy=settings.completion_proxy) as client:
         response = await client.post(
             settings.completion_url,
             headers={"Authorization": f"Bearer {settings.completion_key}"},

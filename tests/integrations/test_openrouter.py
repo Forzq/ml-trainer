@@ -75,7 +75,8 @@ def test_valid_completion_retains_evaluation_and_does_not_log_warning(caplog):
 
 def test_direct_deepseek_uses_its_own_key_model_and_options():
     settings = Settings(openrouter_key="old-key", model="old-model", llm_base_url="https://api.deepseek.com",
-                        llm_api_key="deepseek-key", llm_model="deepseek-flash")
+                        llm_api_key="deepseek-key", llm_model="deepseek-flash",
+                        openrouter_proxy_url="socks5h://127.0.0.1:1080")
     client_class = httpx.Client
     messages = [{"role": "user", "content": "Return JSON."}]
 
@@ -97,3 +98,13 @@ def test_direct_deepseek_uses_its_own_key_model_and_options():
 
     settings.llm_api_key = ""
     assert not settings.ai_enabled and not settings.transcription_enabled
+
+
+def test_openrouter_passes_its_proxy_to_httpx():
+    proxy = "socks5h://127.0.0.1:1080"
+    settings = Settings(openrouter_key="openrouter-key", model="test-model", llm_base_url="",
+                        openrouter_proxy_url=proxy)
+    with patch("app.integrations.openrouter.httpx.Client") as client:
+        client.return_value.__enter__.return_value.post.return_value = response_with("OK")
+        assert chat_completion(settings, [], operation="evaluate", parse=str) == "OK"
+    client.assert_called_once_with(timeout=90, proxy=proxy)

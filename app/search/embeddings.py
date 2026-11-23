@@ -18,7 +18,7 @@ class Embeddings:
 
     def encode(self, texts: list[str]) -> list[list[float]]:
         if self.remote:
-            with httpx.Client(timeout=60) as client:
+            with httpx.Client(timeout=60, proxy=self.settings.openrouter_proxy_url or None) as client:
                 vectors = []
                 for offset in range(0, len(texts), self.BATCH_SIZE):
                     batch = texts[offset:offset + self.BATCH_SIZE]
