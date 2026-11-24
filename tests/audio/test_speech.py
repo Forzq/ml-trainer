@@ -238,10 +238,14 @@ def test_cancel_closes_provider_and_never_caches_partial_audio(tmp_path):
     asyncio.run(check())
 
 
-def test_same_phrase_in_flight_is_deduplicated(tmp_path):
+@pytest.mark.parametrize("beta", [False, True])
+def test_same_phrase_in_flight_is_deduplicated(tmp_path, beta):
     async def check():
         paused = PausedAudio()
-        speech = Speech(settings_at(tmp_path))
+        settings = settings_at(tmp_path)
+        if beta:
+            settings.beta_origin = "https://mockroom.dynv6.net"
+        speech = Speech(settings)
         calls = []
         def respond(request):
             calls.append(request)
@@ -249,12 +253,18 @@ def test_same_phrase_in_flight_is_deduplicated(tmp_path):
         with provider(respond):
             first = speech.stream("Same phrase")
             head = await anext(first)
-            second = asyncio.create_task(speech.synthesize("Same phrase"))
-            await asyncio.sleep(0)
-            assert not second.done()
+            if beta:
+                with pytest.raises(SpeechError) as error:
+                    await asyncio.wait_for(speech.synthesize("Same phrase"), timeout=2)
+                assert error.value.status == 409
+            else:
+                second = asyncio.create_task(speech.synthesize("Same phrase"))
+                await asyncio.sleep(0)
+                assert not second.done()
             paused.release.set()
             assert head + b"".join([chunk async for chunk in first]) == AUDIO
-            assert await asyncio.wait_for(second, timeout=2) == AUDIO
+            replay = speech.synthesize("Same phrase") if beta else second
+            assert await asyncio.wait_for(replay, timeout=2) == AUDIO
             assert len(calls) == 1 and not speech.pending
     asyncio.run(check())
 

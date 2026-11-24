@@ -66,6 +66,8 @@ class Speech:
         key = hashlib.sha256("\0".join(cache_parts).encode()).hexdigest()
         # Deduplicate the same phrase, but never queue new speech behind an unrelated request.
         pending = self.pending.setdefault(key, [asyncio.Lock(), 0])
+        if settings.beta_origin and pending[0].locked():
+            raise SpeechError(409, "Эта фраза уже озвучивается. Попробуй через пару секунд.")
         pending[1] += 1
         try:
             async with pending[0]:

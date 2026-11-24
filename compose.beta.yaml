@@ -1,7 +1,11 @@
 name: mockroom-beta
 services:
   trainer:
-    build: .
+    build:
+      context: .
+      args:
+        MOCKROOM_SOURCE_COMMIT: "${MOCKROOM_SOURCE_COMMIT:-}"
+        MOCKROOM_SOURCE_DIRTY: "${MOCKROOM_SOURCE_DIRTY:-}"
     network_mode: host
     env_file: .env
     environment:

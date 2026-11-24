@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Администрирование · Mockroom</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/css/admin.css">
+  <script src="/static/js/pages/admin.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/static/favicon.svg" alt="" width="32" height="32"> Mockroom</div>
+    <a href="/">Открыть тренажёр</a>
+  </header>
+  <main>
+    <section id="sign-in" class="panel sign-in" hidden>
+      <h1>Вход администратора</h1>
+      <form id="login">
+        <label>Логин <input name="login" autocomplete="username" required maxlength="64"></label>
+        <label>Пароль <input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+        <button type="submit" class="primary">Войти</button>
+        <p id="login-error" class="error" role="alert" hidden></p>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="heading">
+        <div><h1>Лимиты беты</h1><p id="updated">Загрузка данных…</p></div>
+        <div class="actions"><button id="refresh" type="button">Обновить</button><button id="logout" type="button">Выйти</button></div>
+      </div>
+      <div id="status" class="status" role="status" hidden></div>
+      <div class="summaries">
+        <section class="panel">
+          <h2>Общая квота</h2>
+          <p class="metric" id="global-remaining">—</p>
+          <p id="global-usage">Осталось запросов</p>
+          <form id="global-limit" class="limit-form" data-target="global">
+            <label>Запросов в сутки <input name="maximum" inputmode="numeric" pattern="[0-9]+" maxlength="19" required></label>
+            <div class="actions"><button class="primary" type="submit">Сохранить</button><button name="reset" type="button">Сбросить</button></div>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>Квота по умолчанию</h2>
+          <p class="metric" id="default-amount">—</p>
+          <p>Запросов на участника в сутки</p>
+          <form id="default-limit" class="limit-form" data-target="default">
+            <label>Запросов в сутки <input name="maximum" inputmode="numeric" pattern="[0-9]+" maxlength="19" required></label>
+            <div class="actions"><button class="primary" type="submit">Сохранить</button><button name="reset" type="button">Сбросить</button></div>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>Бюджет ключа OpenRouter</h2>
+          <p class="metric" id="key-remaining">—</p>
+          <p id="key-status">Загрузка бюджета…</p>
+        </section>
+      </div>
+      <section class="panel participants">
+        <div class="heading"><h2>Участники</h2><label class="search">Поиск <input id="search" type="search" placeholder="Имя или ID"></label></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Участник</th><th scope="col">Потрачено</th><th scope="col">Осталось</th><th scope="col">Квота на сутки</th></tr></thead>
+            <tbody id="accounts"></tbody>
+          </table>
+        </div>
+        <p id="empty" hidden>Участники не найдены.</p>
+      </section>
+      <section class="panel version">
+        <h2>Версия на сервере</h2>
+        <dl>
+          <div><dt>Версия</dt><dd id="release">—</dd></div>
+          <div><dt>ID сборки</dt><dd><code id="build-id">—</code></dd></div>
+          <div><dt>Коммит Git</dt><dd id="commit">—</dd></div>
+          <div><dt>Время сборки</dt><dd id="built-at">—</dd></div>
+        </dl>
+      </section>
+    </section>
+  </main>
+  <template id="account-row">
+    <tr>
+      <th scope="row"><span class="account-name"></span><small class="account-label" hidden></small><small class="account-state"></small><code class="account-id"></code></th>
+      <td class="account-used"></td>
+      <td class="account-remaining"></td>
+      <td>
+        <form class="account-limit" data-target="account">
+          <input name="maximum" inputmode="numeric" pattern="[0-9]+" maxlength="19" required>
+          <button class="primary" type="submit">Сохранить</button>
+          <button name="reset" type="button">По умолчанию</button>
+        </form>
+      </td>
+    </tr>
+  </template>
+</body>
+</html>

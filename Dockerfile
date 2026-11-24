@@ -14,6 +14,11 @@ RUN python -m pip install --no-cache-dir -r requirements.txt numpy==2.3.5 \
 COPY app/ app/
 COPY web/ web/
 COPY content/questions.json content/question-versions-v1.json content/
+COPY Dockerfile ./
+
+ARG MOCKROOM_SOURCE_COMMIT=
+ARG MOCKROOM_SOURCE_DIRTY=
+RUN python -m app.core.build_info --write --commit "$MOCKROOM_SOURCE_COMMIT" --dirty "$MOCKROOM_SOURCE_DIRTY"
 
 USER appuser
 CMD ["python", "-m", "app.server"]

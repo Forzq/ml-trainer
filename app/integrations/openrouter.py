@@ -1,12 +1,34 @@
 """OpenAI-compatible transport and safe completion diagnostics."""
 import json
 import logging
+import math
 import re
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import ValidationError
 
 LOG = logging.getLogger("ml-trainer.trainer")
+
+
+def current_key_budget(settings):
+    endpoint = urlsplit(settings.completion_url)
+    if not settings.completion_key or endpoint.scheme != "https" or endpoint.hostname != "openrouter.ai":
+        return {"available": False, "reason": "not_configured"}
+    try:
+        response = httpx.get("https://openrouter.ai/api/v1/key",
+                             headers={"Authorization": f"Bearer {settings.completion_key}"},
+                             proxy=settings.completion_proxy, timeout=5)
+        response.raise_for_status()
+        data = response.json()["data"]
+        amounts = {field: data.get(field) for field in ("limit", "limit_remaining", "usage_daily")}
+        if any(value is not None and (type(value) not in (int, float) or not math.isfinite(value))
+               for value in amounts.values()):
+            raise ValueError("Invalid budget metadata")
+        reset = data.get("limit_reset")
+        return {"available": True, **amounts, "limit_reset": reset if reset in ("daily", "weekly", "monthly") else None}
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        return {"available": False, "reason": "unavailable"}
 
 
 def _label(value):

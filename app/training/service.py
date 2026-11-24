@@ -1,6 +1,9 @@
 """Training session transitions, answer evaluation and follow-up discussion."""
 import json
 import uuid
+from contextlib import contextmanager
+from threading import Lock
+
 import httpx
 from app.training.errors import TrainingError
 from app.questions.catalog import TOPICS
@@ -9,13 +12,27 @@ from app.integrations.openrouter import log_model_failure
 
 
 class TrainingService:
-    def __init__(self, store, reader, settings, lock, *, evaluate, discuss):
+    def __init__(self, store, reader, settings, *, evaluate, discuss):
         self.store = store
         self.reader = reader
         self.settings = settings
-        self.lock = lock
+        self._operations_lock = Lock()
+        self._active_sessions = set()
         self.evaluate = evaluate
         self.discuss = discuss
+
+    @contextmanager
+    def _reserve_session(self, session_id, owner):
+        key = (owner, session_id)
+        with self._operations_lock:
+            if key in self._active_sessions:
+                raise TrainingError(409, "В этой тренировке уже выполняется запрос. Попробуй после его завершения.")
+            self._active_sessions.add(key)
+        try:
+            yield
+        finally:
+            with self._operations_lock:
+                self._active_sessions.remove(key)
 
     def new_session(self, body, *, owner=""):
         store = self.store
@@ -39,7 +56,7 @@ class TrainingService:
         return self.reader.state(session_id, owner=owner)
 
     def answer(self, session_id, body, *, owner=""):
-        with self.lock:
+        with self._reserve_session(session_id, owner):
             state = self.reader.state(session_id, owner=owner)
             if state["completed"]:
                 raise TrainingError(409, "Эта тренировка уже завершена.")
@@ -66,7 +83,7 @@ class TrainingService:
             return {"evaluation": result, "session": self.reader.state(session_id, owner=owner)}
 
     def discussion(self, session_id, body, *, owner=""):
-        with self.lock:
+        with self._reserve_session(session_id, owner):
             state = self.reader.state(session_id, owner=owner)
             if state["completed"] or not state["reviewing"]:
                 raise TrainingError(409, "Обсуждение доступно после разбора текущего ответа.")
@@ -88,7 +105,7 @@ class TrainingService:
             return {"discussion": result, "session": self.reader.state(session_id, owner=owner)}
 
     def next_question(self, session_id, body, *, owner=""):
-        with self.lock:
+        with self._reserve_session(session_id, owner):
             state = self.reader.state(session_id, owner=owner)
             if state["completed"] or not state["reviewing"]:
                 raise TrainingError(409, "Сначала ответь на текущий вопрос или пропусти его.")
@@ -102,7 +119,7 @@ class TrainingService:
             return self.reader.state(session_id, owner=owner)
 
     def finish(self, session_id, *, owner=""):
-        with self.lock:
+        with self._reserve_session(session_id, owner):
             self.reader.state(session_id, owner=owner)
             with self.store.connect() as db:
                 db.execute("UPDATE sessions SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP) WHERE id=? AND owner_id=?", (session_id, owner))

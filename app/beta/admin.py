@@ -1,8 +1,10 @@
 """Manage beta invitations and daily quotas on the server."""
 import argparse
+from getpass import getpass
 from datetime import datetime, timezone
 
 from app.beta.access import BetaAccess
+from app.beta.admin_access import AdminAccess
 from app.beta.quotas import DEFAULT_ACCOUNT, GLOBAL, account_subject
 from app.core.config import Settings
 
@@ -34,6 +36,8 @@ def main():
     set_limit = commands.add_parser("set-limit", help="Set a daily limit without resetting usage")
     set_limit.add_argument("maximum", type=int, help="Requests per day (0 pauses paid features)")
     reset_limit = commands.add_parser("reset-limit", help="Restore the inherited limit")
+    admin_login = commands.add_parser("set-admin", help="Configure or rotate the browser administrator login")
+    admin_login.add_argument("--username", required=True)
     for command in (set_limit, reset_limit):
         target = command.add_mutually_exclusive_group(required=True)
         target.add_argument("--account", help="Participant account ID")
@@ -47,7 +51,16 @@ def main():
         parser.error("MOCKROOM_BETA_ORIGIN must be set. Run this in the beta service.")
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     access = BetaAccess(settings.data_dir / "beta.sqlite3")
-    if args.action == "invite":
+    if args.action == "set-admin":
+        password = getpass("New password: ")
+        if getpass("Confirm password: ") != password:
+            parser.error("Passwords do not match.")
+        try:
+            AdminAccess(access.connect).set_credentials(args.username, password, replace=True)
+        except ValueError as error:
+            parser.error(str(error))
+        print("Administrator credentials configured. Previous admin sessions expired.")
+    elif args.action == "invite":
         try:
             account, invite, code = access.issue(args.label or "", args.hours * 3600, account_id=args.account)
         except ValueError as error:

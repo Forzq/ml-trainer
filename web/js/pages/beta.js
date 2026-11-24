@@ -43,6 +43,45 @@ function showBetaLogin() {
   });
 }
 
+function showBetaName() {
+  document.body.classList.add("beta-signed-out");
+  setPage(`
+    <section class="beta-sign-in">
+      <h1>Как тебя зовут?</h1>
+      <p>Имя будет видно администратору беты.</p>
+      <form id="beta-profile">
+        <label class="field-label" for="display-name">Имя</label>
+        <input id="display-name" name="name" required maxlength="80" autocomplete="name">
+        <button class="button primary full" type="submit">Продолжить</button>
+        <p id="beta-profile-error" role="alert" hidden></p>
+      </form>
+      <button class="text-button beta-back" type="button" data-action="logout">Выйти</button>
+    </section>`, "Профиль");
+  $("#display-name").focus();
+  $("#beta-profile").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector("button");
+    const errorMessage = $("#beta-profile-error");
+    const name = $("#display-name").value.trim();
+    if (!name) {
+      errorMessage.textContent = "Введи имя.";
+      errorMessage.hidden = false;
+      return;
+    }
+    button.disabled = true;
+    errorMessage.hidden = true;
+    try {
+      await api("/beta/profile", { method: "PUT", body: { name } });
+      await boot();
+    } catch (error) {
+      if (error.status === 401) { showBetaLogin(); return; }
+      errorMessage.textContent = error.message;
+      errorMessage.hidden = false;
+      button.disabled = false;
+    }
+  });
+}
+
 function syncBetaControls(config) {
   document.body.classList.remove("beta-signed-out");
   settingsPage.querySelector('[data-action="logout"]').hidden = !config.beta;

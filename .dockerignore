@@ -1,5 +1,6 @@
 *
 !requirements.txt
+!Dockerfile
 !app/
 !app/**
 !web/
@@ -8,3 +9,5 @@
 !content/questions.json
 !content/question-versions-v1.json
 **/__pycache__/
+**/.env
+**/.env.*

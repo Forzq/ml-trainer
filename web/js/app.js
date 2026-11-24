@@ -166,7 +166,12 @@ document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener(
 
 async function boot() {
   try {
-    state.config = await api("/config");
+    const config = await api("/config");
+    if (config.beta && !config.display_name) {
+      showBetaName();
+      return;
+    }
+    state.config = config;
     syncBetaControls(state.config);
     syncVoiceControls();
     await trainerAvatar.load().catch(() => toast("Не удалось загрузить картинки аватара. Тренировка доступна."));

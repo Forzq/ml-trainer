@@ -37,6 +37,7 @@ class Settings:
     beta_origin: str = os.getenv("MOCKROOM_BETA_ORIGIN", "").strip().rstrip("/")
     beta_identity_daily_limit: int = int(os.getenv("MOCKROOM_BETA_USER_LIMIT", "30"))
     beta_total_daily_limit: int = int(os.getenv("MOCKROOM_BETA_TOTAL_LIMIT", "100"))
+    beta_max_in_flight: int = int(os.getenv("MOCKROOM_BETA_MAX_IN_FLIGHT", "4"))
 
     def fish_voice_for(self, voice: TrainerVoice) -> str:
         return self.fish_male_voice_id if voice == "male" else self.fish_voice_id

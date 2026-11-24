@@ -1,4 +1,4 @@
-"""Invitation exchange and logout for the hosted beta."""
+"""Invitation exchange and participant profiles for the hosted beta."""
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
@@ -7,6 +7,10 @@ from app.beta.access import COOKIE, SESSION_SECONDS, digest
 
 class InviteCode(BaseModel):
     code: str = Field(min_length=1, max_length=128)
+
+
+class ProfileName(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
 
 
 def create_router(access):
@@ -24,6 +28,15 @@ def create_router(access):
             raise HTTPException(400, "Приглашение недействительно, просрочено или уже использовано.")
         response.set_cookie(COOKIE, token, max_age=SESSION_SECONDS, secure=True, httponly=True, samesite="strict")
         return {"ok": True}
+
+    @router.put("/profile")
+    def profile(body: ProfileName, request: Request):
+        name = " ".join(body.name.split())
+        if not name or not name.isprintable():
+            raise HTTPException(422, "Введи имя.")
+        if not access.save_display_name(request.state.owner, name):
+            raise HTTPException(401, "Войди по приглашению.")
+        return {"name": name}
 
     @router.post("/logout")
     def logout(request: Request, response: Response):

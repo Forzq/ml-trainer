@@ -1,4 +1,4 @@
-"""SQLite storage for beta invitations and login sessions."""
+"""SQLite storage for beta invitations, login sessions and participant profiles."""
 import hashlib
 import secrets
 import sqlite3
@@ -33,6 +33,9 @@ class BetaAccess:
                     digest TEXT PRIMARY KEY, account_id TEXT NOT NULL, expires_at INTEGER NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS logins_account ON logins(account_id);
+                CREATE TABLE IF NOT EXISTS account_profiles (
+                    account_id TEXT PRIMARY KEY, display_name TEXT NOT NULL
+                );
             """)
         self.quotas = BetaQuotas(self.connect)
 
@@ -86,6 +89,24 @@ class BetaAccess:
     def logout(self, token):
         with closing(self.connect()) as db, db:
             db.execute("DELETE FROM logins WHERE digest=?", (digest(token),))
+
+    def display_name(self, account_id):
+        with closing(self.connect()) as db:
+            row = db.execute("SELECT display_name FROM account_profiles WHERE account_id=?",
+                             (account_id,)).fetchone()
+        return row[0] if row else None
+
+    def display_names(self):
+        with closing(self.connect()) as db:
+            return dict(db.execute("SELECT account_id, display_name FROM account_profiles"))
+
+    def save_display_name(self, account_id, name):
+        with closing(self.connect()) as db, db:
+            return bool(db.execute("""
+                INSERT INTO account_profiles(account_id, display_name)
+                SELECT id, ? FROM accounts WHERE id=? AND active=1
+                ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name
+            """, (name, account_id)).rowcount)
 
     def revoke_invite(self, invite_id):
         with closing(self.connect()) as db, db:

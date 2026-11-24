@@ -1,5 +1,4 @@
 """Access policy for the local desktop and hosted beta."""
-import re
 from urllib.parse import urlsplit
 
 from fastapi import Request
@@ -7,34 +6,20 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.api.admission import BetaProviderAdmission
+from app.api.routes.beta_admin import ADMIN_LOGIN
 from app.beta.access import COOKIE
-from app.beta.quotas import UsageLimit
+from app.beta.admin_access import ADMIN_COOKIE
 
 REDEEM = "/api/beta/redeem"
-PAID_SESSION_ACTION = re.compile(r"/api/sessions/[^/]+/(answer|discuss)/?")
 
 
-def quota_applies(request, settings):
-    path = request.url.path.rstrip("/")
-    if request.method == "POST":
-        return ((settings.ai_enabled and PAID_SESSION_ACTION.fullmatch(path))
-                or (settings.stt_enabled and path == "/api/transcribe")
-                or (settings.fish_enabled and path == "/api/speech"))
-    return (request.method == "GET" and path == "/api/cards"
-            and settings.embedding_model and settings.openrouter_key
-            and request.query_params.get("q", "").strip())
-
-
-def limit_response(error):
-    return JSONResponse({"detail": str(error)}, status_code=429,
-                        headers={"Retry-After": str(error.retry_after), "Cache-Control": "no-store"})
-
-
-def install_security(app, access=None):
+def install_security(app, access=None, administrator=None):
     settings = app.state.settings
     hosts = ["127.0.0.1", "localhost", "testserver"]
     if access:
         hosts.append(urlsplit(settings.beta_origin).hostname)
+        app.add_middleware(BetaProviderAdmission, access=access, settings=settings)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts)
 
     async def authorize(request, call_next):
@@ -52,19 +37,18 @@ def install_security(app, access=None):
                         or request.headers.get("x-mockroom-client") != "web"
                     ):
                         return JSONResponse({"detail": "Недопустимый источник запроса."}, status_code=403)
-                    if path != REDEEM or request.method != "POST":
+                    if path == "/api/admin" or path.startswith("/api/admin/"):
+                        if path != ADMIN_LOGIN or request.method != "POST":
+                            allowed = await run_in_threadpool(
+                                administrator.authenticate, request.cookies.get(ADMIN_COOKIE),
+                            )
+                            if not allowed:
+                                return JSONResponse({"detail": "Войди как администратор."}, status_code=401)
+                    elif path != REDEEM or request.method != "POST":
                         owner = await run_in_threadpool(access.authenticate, request.cookies.get(COOKIE))
                         if owner is None:
                             return JSONResponse({"detail": "Войди по приглашению."}, status_code=401)
                         request.state.owner = owner
-                        if quota_applies(request, settings):
-                            try:
-                                await run_in_threadpool(
-                                    access.quotas.consume_provider, owner, settings.beta_identity_daily_limit,
-                                    settings.beta_total_daily_limit,
-                                )
-                            except UsageLimit as error:
-                                return limit_response(error)
         elif request.method not in ("GET", "HEAD", "OPTIONS"):
             origin = request.headers.get("origin")
             if origin and origin != str(request.base_url).rstrip("/"):

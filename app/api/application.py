@@ -1,7 +1,6 @@
 """Composition root: initialize services and mount feature routers."""
 import logging
 import secrets
-import threading
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 from fastapi import FastAPI
@@ -14,10 +13,12 @@ from app.training.reader import SessionReader
 from app.training.evaluator import evaluate, discuss
 from app.training.service import TrainingService
 from app.training.errors import TrainingError
-from app.api.security import install_security, limit_response
-from app.api.routes import system, catalog, history, sessions, audio, beta
+from app.api.admission import limit_response
+from app.api.security import install_security
+from app.api.routes import system, catalog, history, sessions, audio, beta, beta_admin
 from app.api.routes.avatar import avatar_router
 from app.beta.access import BetaAccess
+from app.beta.admin_access import AdminAccess
 from app.beta.quotas import UsageLimit
 
 LOG = logging.getLogger("ml-trainer")
@@ -26,6 +27,7 @@ LOG = logging.getLogger("ml-trainer")
 def create_app(settings: Settings | None = None):
     settings = settings or Settings()
     access = None
+    administrator = None
     if settings.beta_origin:
         origin = urlsplit(settings.beta_origin)
         if (origin.scheme != "https" or not origin.hostname or origin.username is not None
@@ -33,8 +35,11 @@ def create_app(settings: Settings | None = None):
             raise ValueError("MOCKROOM_BETA_ORIGIN must be an HTTPS origin without a port or path.")
         if min(settings.beta_identity_daily_limit, settings.beta_total_daily_limit) < 0:
             raise ValueError("Beta request limits must be non-negative.")
+        if not 1 <= settings.beta_max_in_flight <= 16:
+            raise ValueError("MOCKROOM_BETA_MAX_IN_FLIGHT must be between 1 and 16.")
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         access = BetaAccess(settings.data_dir / "beta.sqlite3")
+        administrator = AdminAccess(access.connect)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -43,10 +48,9 @@ def create_app(settings: Settings | None = None):
         try:
             app.state.sessions = SessionReader(store)
             app.state.token = secrets.token_urlsafe(32)
-            app.state.session_lock = threading.Lock()
             app.state.speech = Speech(settings)
             app.state.training = TrainingService(
-                store, app.state.sessions, settings, app.state.session_lock,
+                store, app.state.sessions, settings,
                 evaluate=evaluate, discuss=discuss,
             )
             yield
@@ -56,11 +60,13 @@ def create_app(settings: Settings | None = None):
     app = FastAPI(title="ML Trainer", lifespan=lifespan, docs_url=None, redoc_url=None,
                   openapi_url=None if access else "/openapi.json")
     app.state.settings = settings
-    install_security(app, access)
+    install_security(app, access, administrator)
     if access:
         app.include_router(beta.create_router(access))
+        app.include_router(beta_admin.create_router(access, administrator, settings))
     app.include_router(avatar_router())
-    for module in (system, catalog, history, sessions, audio):
+    app.include_router(system.create_router(app, access))
+    for module in (catalog, history, sessions, audio):
         app.include_router(module.create_router(app))
 
     @app.exception_handler(TrainingError)

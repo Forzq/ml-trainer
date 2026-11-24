@@ -31,9 +31,14 @@
   color: var(--ink);
 }
 
-#beta-login-error {
+#beta-login-error,
+#beta-profile-error {
   margin: 14px 0 0;
   color: var(--ink);
+}
+
+.beta-sign-in .beta-back {
+  margin-top: 12px;
 }
 
 button[data-action="logout"][hidden],
