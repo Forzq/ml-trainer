@@ -13,6 +13,39 @@ class CleanTranscript(BaseModel):
     text: str = Field(strict=True, max_length=12000)
 
 
+_LOCAL_FILLERS = re.compile(
+    r"(?<![\w-])(?:э{2,}|э(?:[-‑–]э)+|м{3,}|м(?:[-‑–]м){2,})(?![\w-])", re.IGNORECASE,
+)
+_LEADING_PAUSE = re.compile(r"^[ \t\r\n,.;:!?…]+")
+_TERM_ALIASES = {
+    "rock aug": "ROC-AUC",
+    "рок аук": "ROC-AUC",
+    "рок аюси": "ROC-AUC",
+    "pr aug": "PR-AUC",
+    "пи ар аук": "PR-AUC",
+    "пресижн": "precision",
+    "рекол": "recall",
+    "реколл": "recall",
+}
+_ALIAS_PATTERN = re.compile(
+    r"(?<![\w-])(?:" + "|".join(r"[ \t]+".join(map(re.escape, alias.split())) for alias in _TERM_ALIASES)
+    + r")(?![\w-])", re.IGNORECASE,
+)
+
+
+def clean_transcript_locally(text: str) -> str:
+    cleaned = _LOCAL_FILLERS.sub("", text)
+    if cleaned != text:
+        if _LOCAL_FILLERS.match(text.lstrip()):
+            cleaned = _LEADING_PAUSE.sub("", cleaned, count=1)
+        cleaned = re.sub(r",(?:[ \t]*,)+", ",", cleaned)
+        cleaned = re.sub(r"[ \t]+([,.;:!?…])", r"\1", cleaned)
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).strip()
+        if not cleaned.strip(" \t\r\n,.;:!?…-–—"):
+            return ""
+    return _ALIAS_PATTERN.sub(lambda match: _TERM_ALIASES[" ".join(match[0].lower().split())], cleaned)
+
+
 INSTRUCTIONS = (
     "Ты редактор расшифровки устной речи на русском в тренажёре машинного обучения. "
     "Твоя единственная задача — бережно исправить запись речи, сохранив ответ автора. "
@@ -37,11 +70,13 @@ INSTRUCTIONS = (
 
 
 async def clean_transcript(text: str, settings: Settings, context: dict | None = None) -> str:
-    """Use the editor model (or trainer model if unset). Errors go to the caller."""
+    """Apply local rules or use the configured editor. Errors go to the caller."""
     if not settings.transcription_enabled or not text.strip():
         return text
     if len(text) > 12000:
         raise ValueError("Transcript is too long to edit")
+    if settings.transcription_cleanup_mode == "local":
+        return clean_transcript_locally(text)
     data = {"transcript": text}
     if context:
         # No reference answer, criteria, feedback or discussion are sent to this editor.

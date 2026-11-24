@@ -45,3 +45,9 @@ button[data-action="logout"][hidden],
 button[data-action="shutdown"][hidden] {
   display: none;
 }
+
+.beta-quota { min-width: 108px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.beta-quota progress { display: block; width: 100%; height: 5px; margin-top: 5px; accent-color: var(--green); }
+@media (max-width: 485px) {
+  .topbar-right:has(.beta-quota:not([hidden])) #mode-badge { display: none; }
+}

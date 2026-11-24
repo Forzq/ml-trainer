@@ -1,7 +1,7 @@
 """Browser administration for the hosted beta."""
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Path, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, SecretStr, ValidationError
 from starlette.concurrency import run_in_threadpool
@@ -29,11 +29,21 @@ class DailyLimit(BaseModel):
     maximum: int | None = Field(ge=0, le=2**63 - 1)
 
 
+class AccountNote(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class NewInvitation(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+    hours: int = Field(default=72, ge=1, le=720)
+
+
 def usage_status(access, settings):
     used, maximum, default, reset, accounts = access.quotas.provider_usage(
         settings.beta_identity_daily_limit, settings.beta_total_daily_limit,
     )
     names = access.display_names()
+    notes = access.account_notes()
     remaining = max(0, maximum - used)
     return {
         "build": current_build(),
@@ -43,7 +53,7 @@ def usage_status(access, settings):
         "accounts": [
             {"id": identifier, "label": label, "display_name": names.get(identifier),
              "active": bool(active), "used": count,
-             "limit": limit, "custom": custom,
+             "limit": limit, "custom": custom, "notes": notes.get(identifier, []),
              "remaining": min(max(0, limit - count), remaining) if active else 0}
             for identifier, label, active, count, limit, custom in accounts
         ],
@@ -98,6 +108,29 @@ def create_router(access, administrator, settings):
         except ValueError:
             raise HTTPException(404, "Участник не найден.") from None
         return usage_status(access, settings)
+
+    @router.post("/api/admin/accounts/{account_id}/reset-usage")
+    def reset_usage(account_id: str = Path(pattern=r"^[a-f0-9]{32}$")):
+        if not access.quotas.reset_account_usage(account_id):
+            raise HTTPException(404, "Участник не найден.")
+        return usage_status(access, settings)
+
+    @router.post("/api/admin/accounts/{account_id}/notes", status_code=201)
+    def add_note(body: AccountNote, account_id: str = Path(pattern=r"^[a-f0-9]{32}$")):
+        text = body.text.strip()
+        if not text:
+            raise HTTPException(422, "Введи заметку.")
+        if not access.add_account_note(account_id, text):
+            raise HTTPException(404, "Участник не найден.")
+        return usage_status(access, settings)
+
+    @router.post("/api/admin/invites", status_code=201)
+    def create_invite(body: NewInvitation):
+        label = " ".join(body.label.split())
+        if not label or not label.isprintable():
+            raise HTTPException(422, "Введи имя или метку участника.")
+        account_id, _, code = access.issue(label, body.hours * 3600)
+        return {"account_id": account_id, "code": code}
 
     @router.get("/api/admin/openrouter")
     def openrouter_budget():

@@ -2,6 +2,7 @@
 import logging
 import secrets
 from contextlib import asynccontextmanager
+from functools import partial
 from urllib.parse import urlsplit
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -52,6 +53,10 @@ def create_app(settings: Settings | None = None):
             app.state.training = TrainingService(
                 store, app.state.sessions, settings,
                 evaluate=evaluate, discuss=discuss,
+                reserve_provider=partial(
+                    access.quotas.consume_provider, account_limit=settings.beta_identity_daily_limit,
+                    total_limit=settings.beta_total_daily_limit,
+                ) if access else None,
             )
             yield
         finally:
@@ -62,7 +67,7 @@ def create_app(settings: Settings | None = None):
     app.state.settings = settings
     install_security(app, access, administrator)
     if access:
-        app.include_router(beta.create_router(access))
+        app.include_router(beta.create_router(access, settings))
         app.include_router(beta_admin.create_router(access, administrator, settings))
     app.include_router(avatar_router())
     app.include_router(system.create_router(app, access))

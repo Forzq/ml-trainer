@@ -55,11 +55,23 @@
           <p id="key-status">Загрузка бюджета…</p>
         </section>
       </div>
+      <section class="panel invitations">
+        <h2>Одноразовое приглашение</h2>
+        <form id="new-invite" class="invite-form">
+          <label>Имя или метка участника <input name="label" required maxlength="80"></label>
+          <label>Действует, часов <input name="hours" type="number" min="1" max="720" value="72" required></label>
+          <button class="primary" type="submit">Создать код</button>
+        </form>
+        <div id="invite-result" class="invite-form" hidden>
+          <label>Одноразовый код <input id="invite-output" readonly autocomplete="off" spellcheck="false"></label>
+          <button id="copy-invite" type="button">Скопировать</button>
+        </div>
+      </section>
       <section class="panel participants">
         <div class="heading"><h2>Участники</h2><label class="search">Поиск <input id="search" type="search" placeholder="Имя или ID"></label></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th scope="col">Участник</th><th scope="col">Потрачено</th><th scope="col">Осталось</th><th scope="col">Квота на сутки</th></tr></thead>
+            <thead><tr><th scope="col">Участник</th><th scope="col">Потрачено</th><th scope="col">Осталось</th><th scope="col">Квота на сутки</th><th scope="col">Заметки</th></tr></thead>
             <tbody id="accounts"></tbody>
           </table>
         </div>
@@ -87,6 +99,17 @@
           <button class="primary" type="submit">Сохранить</button>
           <button name="reset" type="button">По умолчанию</button>
         </form>
+        <button class="reset-usage" type="button">Обнулить расход за сегодня</button>
+      </td>
+      <td>
+        <details class="account-notes">
+          <summary>Заметки</summary>
+          <ul class="notes-list"></ul>
+          <form class="note-form">
+            <label>Новая заметка <textarea name="text" rows="3" maxlength="2000" required></textarea></label>
+            <button type="submit">Добавить заметку</button>
+          </form>
+        </details>
       </td>
     </tr>
   </template>

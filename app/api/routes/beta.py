@@ -13,7 +13,7 @@ class ProfileName(BaseModel):
     name: str = Field(min_length=1, max_length=80)
 
 
-def create_router(access):
+def create_router(access, settings):
     router = APIRouter(prefix="/api/beta")
 
     @router.post("/redeem")
@@ -37,6 +37,12 @@ def create_router(access):
         if not access.save_display_name(request.state.owner, name):
             raise HTTPException(401, "Войди по приглашению.")
         return {"name": name}
+
+    @router.get("/quota")
+    def quota(request: Request):
+        return access.quotas.account_quota(
+            request.state.owner, settings.beta_identity_daily_limit, settings.beta_total_daily_limit,
+        )
 
     @router.post("/logout")
     def logout(request: Request, response: Response):

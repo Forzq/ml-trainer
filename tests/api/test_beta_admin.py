@@ -72,3 +72,53 @@ def test_admin_quota_changes_are_private_and_preserve_usage(tmp_path, monkeypatc
         assert operator.post("/api/admin/logout", headers=HEADERS).status_code == 200
         assert not admin.authenticate(token)
         assert operator.get("/api/admin/usage").status_code == 401
+
+
+def test_admin_invites_notes_and_personal_quota_reset(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.storage.store.load_cards", lambda: load_cards()[:1])
+    settings = Settings(data_dir=tmp_path, beta_origin=ORIGIN, beta_identity_daily_limit=30,
+                        beta_total_daily_limit=10, embedding_model="", qdrant_url="")
+    app = create_app(settings)
+    access = BetaAccess(tmp_path / "beta.sqlite3")
+    AdminAccess(access.connect).set_credentials(**CREDENTIALS)
+    account, _, original = access.issue("Current", 60)
+    access.quotas.consume_provider(account, 30, 10)
+    notes = f"/api/admin/accounts/{account}/notes"
+    reset = f"/api/admin/accounts/{account}/reset-usage"
+    invites = "/api/admin/invites"
+
+    with (TestClient(app, base_url=ORIGIN) as operator,
+          closing(TestClient(app, base_url=ORIGIN)) as current,
+          closing(TestClient(app, base_url=ORIGIN)) as invited):
+        assert current.post("/api/beta/redeem", headers=HEADERS, json={"code": original}).status_code == 200
+        assert current.get("/api/beta/quota").json()["remaining"] == 9
+        assert current.post(notes, headers=HEADERS, json={"text": "private"}).status_code == 401
+        assert current.post(reset, headers=HEADERS).status_code == 401
+        assert current.post(invites, headers=HEADERS, json={"label": "New"}).status_code == 401
+        assert operator.post("/api/admin/login", headers=HEADERS, json=CREDENTIALS).status_code == 200
+        assert operator.post(notes, headers=HEADERS, json={"text": "  "}).status_code == 422
+        assert operator.post(notes, headers=HEADERS, json={"text": "<b>Личная заметка</b>"}).status_code == 201
+        assert operator.post(notes, headers=HEADERS, json={"text": "Вторая заметка"}).status_code == 201
+        assert operator.post(reset).status_code == 403
+        assert operator.put("/api/admin/limits", headers=HEADERS, json={
+            "target": "account", "account_id": account, "maximum": 3,
+        }).status_code == 200
+        assert current.get("/api/beta/quota").json()["remaining"] == 2
+        updated = operator.post(reset, headers=HEADERS).json()
+        assert updated["global"] == {"used": 1, "limit": 10, "remaining": 9}
+        row = updated["accounts"][0]
+        assert (row["used"], row["limit"], row["remaining"], row["custom"]) == (0, 3, 3, True)
+        assert [note["text"] for note in row["notes"]] == ["Вторая заметка", "<b>Личная заметка</b>"]
+        quota = current.get("/api/beta/quota").json()
+        assert quota == {"limit": 3, "remaining": 3, "reset_at": updated["reset_at"]}
+        assert "notes" not in current.get("/api/config").json()
+        assert operator.post(invites, headers=HEADERS, json={"label": "New", "hours": 0}).status_code == 422
+        invite = operator.post(invites, headers=HEADERS, json={"label": "New", "hours": 2})
+        assert invite.status_code == 201 and invite.headers["cache-control"] == "no-store"
+        code = invite.json()["code"]
+        accounts = operator.get("/api/admin/usage")
+        assert code not in accounts.text
+        assert next(item for item in accounts.json()["accounts"] if item["id"] == invite.json()["account_id"])["notes"] == []
+        assert invited.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 200
+        assert invited.post("/api/beta/logout", headers=HEADERS).status_code == 200
+        assert invited.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 400

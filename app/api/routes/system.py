@@ -31,6 +31,7 @@ def create_router(app, access=None):
             "embedding": store.embeddings.name, "semantic": store.embeddings.remote,
             "database": "Qdrant Server" if settings.qdrant_url else "Qdrant Local",
             "collection": store.collection, "cards": len(store.cards),
+            "catalog_version": store.catalog_version,
             "levels": list(LEVELS),
             "topics": [dict(topic, count=sum(c["topic_id"] == topic["id"] for c in store.cards),
                             levels={level: sum(c["topic_id"] == topic["id"] and c["level"] == level for c in store.cards)

@@ -10,6 +10,7 @@ import time
 import wave
 from collections import Counter
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -145,8 +146,23 @@ def main():
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
                 expect(page.locator(".history-discussion")).to_have_count(2)
                 expect(page.locator(".history-discussion").first).to_contain_text("Я уже упомянул новые данные")
-                page.get_by_role("link", name="Банк вопросов").click()
+                library_requests = []
+                page.on("request", lambda request: library_requests.append(request.url)
+                        if urlsplit(request.url).path == "/api/cards" else None)
+                library_link = page.get_by_role("link", name="Банк вопросов")
+                library_link.click()
                 expect(page.locator(".question-card")).to_have_count(569)
+                assert len(library_requests) == 1
+                overview_link.click()
+                library_link.click()
+                expect(page.locator(".question-card")).to_have_count(569)
+                page.reload()
+                expect(page.locator(".question-card")).to_have_count(569)
+                assert len(library_requests) == 1
+                page.evaluate("localStorage.setItem('ml-library-cards-v1', JSON.stringify({version:'old', cards:[]}))")
+                page.reload()
+                expect(page.locator(".question-card")).to_have_count(569)
+                assert len(library_requests) == 2
                 expect(page.locator(".question-card .interview-frequency")).to_have_count(569)
                 expect(page.locator(".question-card").first.get_by_role("img", name="Оценка частоты на собеседованиях — очень часто, 3 из 3")).to_be_visible()
                 page.locator("#card-search").fill("mock-interview")
@@ -164,8 +180,11 @@ def main():
                 assert page.locator(".question-card-footer > .tag:first-child").all_text_contents() == ["Senior"] * 20
                 page.locator("#library-level").select_option("all")
                 expect(page.locator(".question-card")).to_have_count(113)
-                page.locator("#card-search").fill("recall")
+                assert len(library_requests) == 2
+                with page.expect_request(lambda request: "/api/cards?q=recall&" in request.url):
+                    page.locator("#card-search").fill("recall")
                 expect(page.locator(".question-card h3").filter(has_text="Precision и recall")).to_have_count(1)
+                assert len(library_requests) == 3
                 page.locator("#card-search").fill("")
                 page.get_by_role("button", name="Data Science", exact=True).click()
                 expect(page.locator(".question-card")).to_have_count(113)

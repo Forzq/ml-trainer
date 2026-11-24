@@ -34,6 +34,7 @@ class Settings:
     llm_model: str = os.getenv("LLM_MODEL", "")
     llm_transcription_model: str = os.getenv("LLM_TRANSCRIPTION_MODEL", "")
     openrouter_proxy_url: str = os.getenv("OPENROUTER_PROXY_URL", "").strip()
+    transcription_cleanup_mode: str = os.getenv("TRANSCRIPTION_CLEANUP_MODE", "model").strip().lower()
     beta_origin: str = os.getenv("MOCKROOM_BETA_ORIGIN", "").strip().rstrip("/")
     beta_identity_daily_limit: int = int(os.getenv("MOCKROOM_BETA_USER_LIMIT", "30"))
     beta_total_daily_limit: int = int(os.getenv("MOCKROOM_BETA_TOTAL_LIMIT", "100"))
@@ -68,12 +69,14 @@ class Settings:
 
     @property
     def transcription_model_name(self) -> str:
+        if self.transcription_cleanup_mode == "local":
+            return "local"
         editor = self.llm_transcription_model if self.llm_base_url else self.transcription_model
         return editor or self.trainer_model_name
 
     @property
     def transcription_enabled(self) -> bool:
-        return bool(self.completion_key and self.transcription_model_name)
+        return self.transcription_cleanup_mode == "local" or bool(self.completion_key and self.transcription_model_name)
 
     @property
     def fish_enabled(self) -> bool:

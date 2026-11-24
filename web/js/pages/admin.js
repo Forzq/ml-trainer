@@ -9,6 +9,8 @@ const usd = new Intl.NumberFormat("ru", { style: "currency", currency: "USD" });
 const date = new Intl.DateTimeFormat("ru", { dateStyle: "medium", timeStyle: "short" });
 let accounts = [];
 let busy = false;
+const openNotes = new Set();
+const noteDrafts = new Map();
 
 async function adminApi(path, method = "GET", data) {
   const response = await fetch("/api/admin/" + path, {
@@ -34,6 +36,11 @@ function message(id, text, error = false) {
 
 function showLogin() {
   accounts = [];
+  openNotes.clear();
+  noteDrafts.clear();
+  byId("invite-output").value = "";
+  byId("invite-result").hidden = true;
+  byId("new-invite").reset();
   byId("accounts").replaceChildren();
   dashboard.hidden = true;
   signIn.hidden = false;
@@ -64,6 +71,30 @@ function renderAccounts() {
     form.elements.maximum.value = account.limit;
     form.elements.maximum.setAttribute("aria-label", "Квота участника " + name);
     form.elements.reset.hidden = !account.custom;
+    const resetUsage = find(".reset-usage");
+    resetUsage.dataset.account = account.id;
+    resetUsage.disabled = account.used === 0;
+    const notes = find(".account-notes");
+    notes.open = openNotes.has(account.id);
+    notes.querySelector("summary").textContent = `Заметки (${account.notes.length})`;
+    notes.addEventListener("toggle", () => {
+      if (notes.open) openNotes.add(account.id);
+      else openNotes.delete(account.id);
+    });
+    const noteForm = find(".note-form");
+    noteForm.dataset.account = account.id;
+    noteForm.elements.text.value = noteDrafts.get(account.id) || "";
+    noteForm.elements.text.addEventListener("input", () => noteDrafts.set(account.id, noteForm.elements.text.value));
+    const notesList = find(".notes-list");
+    for (const note of account.notes) {
+      const entry = document.createElement("li");
+      const stamp = document.createElement("time");
+      stamp.textContent = date.format(new Date(note.created_at * 1000));
+      const content = document.createElement("p");
+      content.textContent = note.text;
+      entry.append(stamp, content);
+      notesList.append(entry);
+    }
     rows.append(row);
   }
   byId("accounts").replaceChildren(rows);
@@ -169,6 +200,18 @@ function saveLimit(form, maximum, button) {
 
 dashboard.addEventListener("submit", (event) => {
   const form = event.target;
+  if (form.matches(".note-form")) {
+    event.preventDefault();
+    void action(form.querySelector("button"), async () => {
+      const account = form.dataset.account;
+      const data = await adminApi(`accounts/${account}/notes`, "POST", { text: form.elements.text.value });
+      noteDrafts.delete(account);
+      openNotes.add(account);
+      render(data);
+      message("status", "Заметка добавлена.");
+    });
+    return;
+  }
   if (!form.dataset.target) return;
   event.preventDefault();
   void saveLimit(form, form.elements.maximum.value, form.querySelector("button[type=submit]"));
@@ -176,6 +219,37 @@ dashboard.addEventListener("submit", (event) => {
 dashboard.addEventListener("click", (event) => {
   const button = event.target.closest("button[name=reset]");
   if (button) void saveLimit(button.form, null, button);
+  const resetUsage = event.target.closest(".reset-usage");
+  if (resetUsage) void action(resetUsage, async () => {
+    render(await adminApi(`accounts/${resetUsage.dataset.account}/reset-usage`, "POST"));
+    message("status", "Расход участника за сегодня обнулён.");
+  });
+});
+
+byId("new-invite").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  void action(form.querySelector("button"), async () => {
+    const { code } = await adminApi("invites", "POST", {
+      label: form.elements.label.value,
+      hours: Number(form.elements.hours.value),
+    });
+    byId("invite-output").value = code;
+    byId("invite-result").hidden = false;
+    form.elements.label.value = "";
+    message("status", "Приглашение создано.");
+    render(await adminApi("usage"));
+  });
+});
+byId("copy-invite").addEventListener("click", async () => {
+  const field = byId("invite-output");
+  try {
+    await navigator.clipboard.writeText(field.value);
+    message("status", "Код скопирован.");
+  } catch {
+    field.select();
+    message("status", "Код выделен. Нажми Ctrl + C, чтобы скопировать.");
+  }
 });
 
 refresh().catch((error) => {

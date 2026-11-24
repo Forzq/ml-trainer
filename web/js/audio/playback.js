@@ -114,6 +114,7 @@ async function speak(text, { force = false } = {}) {
         headers: { "Content-Type": "application/json", "X-Mockroom-Client": "web", "X-App-Token": state.config.token },
         body: JSON.stringify({ text, tone: state.tone, voice: trainerVoice(), stream: true }),
       });
+      if (state.config?.beta) void refreshBetaQuota();
       if (!response.ok) {
         const result = await response.json();
         throw new Error(typeof result.detail === "string" ? result.detail : "Не удалось озвучить сообщение.");

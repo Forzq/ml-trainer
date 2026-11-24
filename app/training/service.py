@@ -6,13 +6,14 @@ from threading import Lock
 
 import httpx
 from app.training.errors import TrainingError
+from app.training.scope import SCOPE_REFUSAL, check_scope, obvious_redirect
 from app.questions.catalog import TOPICS
 from app.questions.selection import select_questions
 from app.integrations.openrouter import log_model_failure
 
 
 class TrainingService:
-    def __init__(self, store, reader, settings, *, evaluate, discuss):
+    def __init__(self, store, reader, settings, *, evaluate, discuss, reserve_provider=None):
         self.store = store
         self.reader = reader
         self.settings = settings
@@ -20,6 +21,21 @@ class TrainingService:
         self._active_sessions = set()
         self.evaluate = evaluate
         self.discuss = discuss
+        self.reserve_provider = reserve_provider
+
+    def _admit_input(self, owner, card, text, *, discussion):
+        if obvious_redirect(text):
+            raise TrainingError(422, SCOPE_REFUSAL)
+        if not self.reserve_provider or not self.settings.ai_enabled:
+            return
+        self.reserve_provider(owner)
+        try:
+            allowed = check_scope(card, text, self.settings, discussion=discussion)
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
+            log_model_failure("scope", self.settings.trainer_model_name, card["id"], error)
+            raise TrainingError(502, "Не удалось проверить тему сообщения. Оно осталось в поле ввода. Попробуй ещё раз.") from None
+        if not allowed:
+            raise TrainingError(422, SCOPE_REFUSAL)
 
     @contextmanager
     def _reserve_session(self, session_id, owner):
@@ -72,6 +88,7 @@ class TrainingService:
                 result = {"score": 0, "feedback": "Ориентир для ответа: " + card["reference"],
                           "covered": [], "missing": [c["label"] for c in card["criteria"]], "mode": "skipped"}
             else:
+                self._admit_input(owner, card, text, discussion=False)
                 try:
                     result = self.evaluate(card, text, self.settings, profile=state["profile"], voice=body.voice)
                 except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
@@ -93,8 +110,9 @@ class TrainingService:
             if not text:
                 raise TrainingError(422, "Напиши или запиши уточнение.")
             attempt = next(item for item in state["attempts"] if item["question"]["id"] == body.question_id)
+            card = self.reader.card(session_id, body.question_id, owner=owner)
+            self._admit_input(owner, card, text, discussion=True)
             try:
-                card = self.reader.card(session_id, body.question_id, owner=owner)
                 result = self.discuss(card, attempt, text, self.settings, profile=state["profile"], voice=body.voice)
             except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
                 log_model_failure("discuss", self.settings.trainer_model_name, body.question_id, error)

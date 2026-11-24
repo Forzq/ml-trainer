@@ -8,6 +8,10 @@ async function api(path, options = {}) {
   }
   const response = await fetch(`/api${path}`, { ...options, headers });
   if (response.status === 401 && (path === "/config" || state.config?.beta)) showBetaLogin();
+  if (state.config?.beta && (path === "/transcribe" || /\/sessions\/[^/]+\/(answer|discuss)$/.test(path)
+      || (state.config.semantic && path.startsWith("/cards?") && new URLSearchParams(path.split("?")[1]).get("q")))) {
+    void refreshBetaQuota();
+  }
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
     const error = new Error(typeof result.detail === "string" ? result.detail : "Не удалось выполнить запрос. Попробуй ещё раз.");

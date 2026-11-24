@@ -88,6 +88,29 @@ class BetaQuotas:
                     ON CONFLICT(subject) DO UPDATE SET maximum=excluded.maximum
                 """, (subject, maximum))
 
+    def reset_account_usage(self, account_id):
+        with closing(self.connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM accounts WHERE id=?", (account_id,)).fetchone():
+                return False
+            end = window_end(int(time.time()), DAY_SECONDS)
+            db.execute("DELETE FROM usage WHERE scope=? AND subject=? AND expires_at=?",
+                       (PROVIDER_SCOPE, account_subject(account_id), end))
+            return True
+
+    def account_quota(self, account_id, account_limit, total_limit):
+        subject = account_subject(account_id)
+        with closing(self.connect()) as db:
+            db.execute("BEGIN")
+            end = window_end(int(time.time()), DAY_SECONDS)
+            counts = dict(db.execute("""
+                SELECT subject, count FROM usage WHERE scope=? AND expires_at=? AND subject IN (?, ?)
+            """, (PROVIDER_SCOPE, end, subject, GLOBAL)))
+            limit = self._provider_limit(db, subject, account_limit)
+            shared_limit = self._provider_limit(db, GLOBAL, total_limit)
+            remaining = max(0, min(limit - counts.get(subject, 0), shared_limit - counts.get(GLOBAL, 0)))
+            return {"limit": limit, "remaining": remaining, "reset_at": end}
+
     def provider_usage(self, account_limit, total_limit):
         with closing(self.connect()) as db:
             db.execute("BEGIN")

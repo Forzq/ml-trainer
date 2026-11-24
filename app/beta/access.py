@@ -36,6 +36,10 @@ class BetaAccess:
                 CREATE TABLE IF NOT EXISTS account_profiles (
                     account_id TEXT PRIMARY KEY, display_name TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS account_notes (
+                    id INTEGER PRIMARY KEY, account_id TEXT NOT NULL, body TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
             """)
         self.quotas = BetaQuotas(self.connect)
 
@@ -107,6 +111,22 @@ class BetaAccess:
                 SELECT id, ? FROM accounts WHERE id=? AND active=1
                 ON CONFLICT(account_id) DO UPDATE SET display_name=excluded.display_name
             """, (name, account_id)).rowcount)
+
+    def add_account_note(self, account_id, text):
+        with closing(self.connect()) as db, db:
+            return bool(db.execute("""
+                INSERT INTO account_notes(account_id, body, created_at)
+                SELECT id, ?, ? FROM accounts WHERE id=?
+            """, (text, int(time.time()), account_id)).rowcount)
+
+    def account_notes(self):
+        with closing(self.connect()) as db:
+            notes = {}
+            for account, text, created_at in db.execute("""
+                SELECT account_id, body, created_at FROM account_notes ORDER BY id DESC
+            """):
+                notes.setdefault(account, []).append({"text": text, "created_at": created_at})
+            return notes
 
     def revoke_invite(self, invite_id):
         with closing(self.connect()) as db, db:

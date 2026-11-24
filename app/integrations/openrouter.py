@@ -86,13 +86,13 @@ def completion_payload(settings, model, messages, *, max_tokens, json_mode):
     return payload
 
 
-def chat_completion(settings, messages, *, operation, parse, json_mode=False):
+def chat_completion(settings, messages, *, operation, parse, json_mode=False, max_tokens=2000):
     """Send one completion and parse it without logging private content."""
     model = settings.trainer_model_name
     with httpx.Client(timeout=90, proxy=settings.completion_proxy) as client:
         response = client.post(
             settings.completion_url,
             headers={"Authorization": f"Bearer {settings.completion_key}"},
-            json=completion_payload(settings, model, messages, max_tokens=2000, json_mode=json_mode),
+            json=completion_payload(settings, model, messages, max_tokens=max_tokens, json_mode=json_mode),
         )
         return completion_content(response, operation, model, parse)

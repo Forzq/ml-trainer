@@ -40,7 +40,7 @@ p { color: var(--muted); line-height: 1.45; margin: 5px 0 0; }
 .metric { margin: 12px 0 0; font-size: 1.75rem; color: #f0eff6; font-weight: 700; }
 .limit-form { margin-top: 18px; }
 label { display: grid; gap: 6px; color: var(--muted); font-size: .88rem; }
-input, button {
+input, textarea, button {
   padding: 8px 11px;
   color: inherit;
   font: inherit;
@@ -48,7 +48,8 @@ input, button {
   border-radius: 8px;
   min-height: 38px;
 }
-input { background: #12121a; width: 100%; }
+input, textarea { background: #12121a; width: 100%; }
+textarea { resize: vertical; }
 button { background: #242433; cursor: pointer; }
 button:disabled { opacity: .55; cursor: wait; }
 button:not(:disabled):hover { border-color: var(--accent); }
@@ -56,12 +57,15 @@ button.primary { background: var(--accent); color: #201537; border-color: transp
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .status { margin-bottom: 16px; color: var(--accent); }
 .error { color: var(--error); }
-.participants, .version { margin-top: 16px; }
+.participants, .invitations, .version { margin-top: 16px; }
+.invite-form { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.invite-form label:first-child { flex: 1 1 240px; max-width: 380px; }
+.invite-form input[type="number"] { width: 110px; }
 .participants .heading { margin-bottom: 14px; }
 .search input { min-width: 160px; }
 .table-wrap { overflow-x: auto; }
-table { width: 100%; min-width: 650px; border-collapse: collapse; }
-th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--line); }
+table { width: 100%; min-width: 780px; border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; padding: 12px 8px; border-bottom: 1px solid var(--line); }
 thead th, small, code, dt { color: var(--muted); font-size: .82rem; }
 tbody tr:last-child > * { border-bottom: 0; }
 tbody th { overflow-wrap: anywhere; }
@@ -69,6 +73,15 @@ tbody th { overflow-wrap: anywhere; }
 .account-label, .account-state, .account-id { margin-top: 3px; font-weight: 400; }
 .account-limit { flex-wrap: wrap; }
 .account-limit input { width: 88px; }
+.reset-usage { margin-top: 8px; }
+.account-notes { min-width: 165px; }
+.account-notes summary { cursor: pointer; color: var(--accent); }
+.notes-list { padding: 0; list-style: none; }
+.notes-list:empty { display: none; }
+.notes-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.notes-list time { color: var(--muted); font-size: .8rem; }
+.notes-list p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-form { display: grid; gap: 8px; margin-top: 12px; }
 .version dl { display: flex; flex-wrap: wrap; gap: 14px 35px; margin: 14px 0 0; }
 .version dd { margin: 4px 0 0; }
 @media (max-width: 790px) { .summaries { grid-template-columns: 1fr; } }

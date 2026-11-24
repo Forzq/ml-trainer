@@ -2,6 +2,7 @@
 
 function showBetaLogin() {
   if ($("#beta-login")) return;
+  $("#beta-quota").hidden = true;
   if (state.config?.beta) {
     live.stop();
     discardRecording();
@@ -86,4 +87,29 @@ function syncBetaControls(config) {
   document.body.classList.remove("beta-signed-out");
   settingsPage.querySelector('[data-action="logout"]').hidden = !config.beta;
   settingsPage.querySelector('[data-action="shutdown"]').hidden = config.beta;
+  if (config.beta) void refreshBetaQuota();
 }
+
+let quotaSequence = 0;
+
+async function refreshBetaQuota() {
+  if (!state.config?.beta) return;
+  const config = state.config;
+  const sequence = ++quotaSequence;
+  try {
+    const { remaining, limit, reset_at: resetAt } = await api("/beta/quota");
+    if (sequence !== quotaSequence || state.config !== config) return;
+    const quota = $("#beta-quota");
+    const bar = $("#beta-quota-bar");
+    bar.max = Math.max(1, limit);
+    bar.value = remaining;
+    const text = `Запросы на сегодня · ${remaining.toLocaleString("ru-RU")} / ${limit.toLocaleString("ru-RU")}`;
+    $("#beta-quota-text").textContent = text;
+    bar.setAttribute("aria-valuetext", `Осталось ${remaining} из ${limit}`);
+    quota.title = "Обновление квоты " + new Date(resetAt * 1000).toLocaleString("ru-RU");
+    quota.hidden = false;
+  } catch { /* Keep the last known quota during a temporary connection failure. */ }
+}
+
+window.addEventListener("focus", refreshBetaQuota);
+setInterval(() => { if (!document.hidden) void refreshBetaQuota(); }, 30000);

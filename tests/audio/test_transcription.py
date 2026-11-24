@@ -5,6 +5,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from app.audio.transcription import clean_transcript_locally
 from app.core.config import Settings
 from app.server import create_app
 
@@ -16,7 +17,7 @@ CLEAN = "Я бы сравнил ROC-AUC и PR-AUC, но не уверен."
 def settings_at(path):
     return Settings(data_dir=path, deepgram_key="private-deepgram", openai_key="", openrouter_key="private-openrouter",
                     model="same-trainer-model", transcription_model="", embedding_model="", qdrant_url="", qdrant_key="",
-                    tts_provider="system", fish_key="")
+                    tts_provider="system", fish_key="", transcription_cleanup_mode="model")
 
 
 def provider(handler):
@@ -36,6 +37,45 @@ def transcribe(client, **kwargs):
     headers = {"X-App-Token": client.get("/api/config").json()["token"]}
     return client.post("/api/transcribe", headers=headers,
                        files={"audio": ("answer.webm", b"test-audio", "audio/webm")}, **kwargs)
+
+
+@pytest.mark.parametrize(("raw", "expected"), [
+    (RAW, "я бы сравнил ROC-AUC и PR-AUC, но не уверен."),
+    ("Э-э-э… сравнил РОК АЮСИ и пи ар аук.", "сравнил ROC-AUC и PR-AUC."),
+    ("Думаю, эээ, стоит сравнить пресижн и реколл.", "Думаю, стоит сравнить precision и recall."),
+    ("Я не знаю, ээ что такое рекол.", "Я не знаю, что такое recall."),
+    ("Эээ, э-э-э… ммм.", ""),
+    ("Точность кажется высокой, но я не знаю. Переменные э, мм и xээ.",
+     "Точность кажется высокой, но я не знаю. Переменные э, мм и xээ."),
+])
+def test_local_cleanup_preserves_the_answer(raw, expected):
+    assert clean_transcript_locally(raw) == expected
+
+
+@pytest.mark.parametrize("openrouter_key", ["private-openrouter", ""])
+def test_local_cleanup_never_calls_a_language_model(tmp_path, openrouter_key):
+    settings = settings_at(tmp_path)
+    settings.openrouter_key = openrouter_key
+    settings.transcription_model = "gemini-editor"
+    settings.transcription_cleanup_mode = "local"
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        assert request.url.host == "api.deepgram.com"
+        return recognized(RAW)
+
+    with TestClient(create_app(settings)) as client, provider(respond):
+        config = client.get("/api/config").json()
+        assert config["transcription"] == {"ready": True, "model": "local"}
+        assert config["model"] == "same-trainer-model"
+        assert transcribe(client).json() == {
+            "text": "я бы сравнил ROC-AUC и PR-AUC, но не уверен.",
+            "raw_text": RAW,
+            "cleanup": "applied",
+            "provider": "deepgram",
+        }
+        assert len(requests) == 1
 
 
 @pytest.mark.parametrize("direct", [False, True])

@@ -49,14 +49,16 @@ class BetaProviderAdmission:
             return
 
         try:
-            try:
-                await run_in_threadpool(
-                    self.access.quotas.consume_provider, owner,
-                    self.settings.beta_identity_daily_limit, self.settings.beta_total_daily_limit,
-                )
-            except UsageLimit as error:
-                await limit_response(error)(scope, receive, send)
-                return
+            # Training reserves quota after session validation and the local scope check.
+            if not PAID_SESSION_ACTION.fullmatch(scope["path"].rstrip("/")):
+                try:
+                    await run_in_threadpool(
+                        self.access.quotas.consume_provider, owner,
+                        self.settings.beta_identity_daily_limit, self.settings.beta_total_daily_limit,
+                    )
+                except UsageLimit as error:
+                    await limit_response(error)(scope, receive, send)
+                    return
             # Hold the slot until the ASGI response ends, even for streaming audio.
             await self.app(scope, receive, send)
         finally:
