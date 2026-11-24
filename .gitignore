@@ -7,3 +7,5 @@ data/
 logs/
 *.lnk
 *.ico
+/desktop-client/node_modules/
+/desktop-client/dist/

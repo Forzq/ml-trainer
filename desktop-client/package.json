@@ -1,0 +1,37 @@
+{
+  "name": "mockroom",
+  "productName": "Mockroom",
+  "version": "0.1.0",
+  "description": "Mockroom desktop client for the private beta",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:windows": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "net.dynv6.mockroom",
+    "files": ["main.cjs", "package.json"],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true
+    },
+    "win": {
+      "icon": "../web/favicon.svg",
+      "artifactName": "Mockroom-Setup-${version}-win-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Mockroom"
+    }
+  }
+}
