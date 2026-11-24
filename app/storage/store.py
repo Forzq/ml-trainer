@@ -33,11 +33,11 @@ class Store:
     def search(self, query="", topic="all", level="all"):
         return self.index.search(query, topic, level)
 
-    def stats(self):
-        return self.history_repository.stats()
+    def stats(self, owner=""):
+        return self.history_repository.stats(owner)
 
-    def history(self, page=1, page_size=30):
-        return self.history_repository.history(page, page_size)
+    def history(self, page=1, page_size=30, *, owner=""):
+        return self.history_repository.history(page, page_size, owner=owner)
 
     def close(self):
         self.index.close()

@@ -3,6 +3,7 @@ import logging
 import secrets
 import threading
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,15 +14,27 @@ from app.training.reader import SessionReader
 from app.training.evaluator import evaluate, discuss
 from app.training.service import TrainingService
 from app.training.errors import TrainingError
-from app.api.security import install_security
-from app.api.routes import system, catalog, history, sessions, audio
+from app.api.security import install_security, limit_response
+from app.api.routes import system, catalog, history, sessions, audio, beta
 from app.api.routes.avatar import avatar_router
+from app.beta.access import BetaAccess
+from app.beta.quotas import UsageLimit
 
 LOG = logging.getLogger("ml-trainer")
 
 
 def create_app(settings: Settings | None = None):
     settings = settings or Settings()
+    access = None
+    if settings.beta_origin:
+        origin = urlsplit(settings.beta_origin)
+        if (origin.scheme != "https" or not origin.hostname or origin.username is not None
+                or origin.path or origin.query or origin.fragment or origin.port is not None):
+            raise ValueError("MOCKROOM_BETA_ORIGIN must be an HTTPS origin without a port or path.")
+        if min(settings.beta_identity_daily_limit, settings.beta_total_daily_limit) < 0:
+            raise ValueError("Beta request limits must be non-negative.")
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        access = BetaAccess(settings.data_dir / "beta.sqlite3")
 
     @asynccontextmanager
     async def lifespan(app):
@@ -40,9 +53,12 @@ def create_app(settings: Settings | None = None):
         finally:
             store.close()
 
-    app = FastAPI(title="ML Trainer", lifespan=lifespan, docs_url=None, redoc_url=None)
+    app = FastAPI(title="ML Trainer", lifespan=lifespan, docs_url=None, redoc_url=None,
+                  openapi_url=None if access else "/openapi.json")
     app.state.settings = settings
-    install_security(app)
+    install_security(app, access)
+    if access:
+        app.include_router(beta.create_router(access))
     app.include_router(avatar_router())
     for module in (system, catalog, history, sessions, audio):
         app.include_router(module.create_router(app))
@@ -50,6 +66,10 @@ def create_app(settings: Settings | None = None):
     @app.exception_handler(TrainingError)
     async def training_error(request, error):
         return JSONResponse({"detail": error.detail}, status_code=error.status_code)
+
+    @app.exception_handler(UsageLimit)
+    async def usage_limit(request, error):
+        return limit_response(error)
 
     @app.exception_handler(Exception)
     async def server_error(request, error):

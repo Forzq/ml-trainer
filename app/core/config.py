@@ -34,6 +34,9 @@ class Settings:
     llm_model: str = os.getenv("LLM_MODEL", "")
     llm_transcription_model: str = os.getenv("LLM_TRANSCRIPTION_MODEL", "")
     openrouter_proxy_url: str = os.getenv("OPENROUTER_PROXY_URL", "").strip()
+    beta_origin: str = os.getenv("MOCKROOM_BETA_ORIGIN", "").strip().rstrip("/")
+    beta_identity_daily_limit: int = int(os.getenv("MOCKROOM_BETA_USER_LIMIT", "30"))
+    beta_total_daily_limit: int = int(os.getenv("MOCKROOM_BETA_TOTAL_LIMIT", "100"))
 
     def fish_voice_for(self, voice: TrainerVoice) -> str:
         return self.fish_male_voice_id if voice == "male" else self.fish_voice_id

@@ -25,6 +25,8 @@
 
 ## Быстрый старт
 
+Для выкладки Mockroom с доступом по приглашениям на VPS см. [инструкцию закрытой беты](deploy/README.md).
+
 Нужны **Windows, Python 3.11+** и [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
 Открой PowerShell в папке, куда хочешь скачать проект:

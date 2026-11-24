@@ -43,6 +43,9 @@ class HistoryRepository:
                 db.execute("ALTER TABLE sessions ADD COLUMN profile TEXT NOT NULL DEFAULT '{}'")
             if "question_snapshots" not in columns:
                 db.execute("ALTER TABLE sessions ADD COLUMN question_snapshots TEXT")
+            if "owner_id" not in columns:
+                db.execute("ALTER TABLE sessions ADD COLUMN owner_id TEXT NOT NULL DEFAULT ''")
+            db.execute("CREATE INDEX IF NOT EXISTS sessions_owner_date ON sessions(owner_id, created_at)")
             # Preserve the pre-edit conditions/rubrics for historical sessions before seeding new cards.
             archive_path = ROOT / "content/question-versions-v1.json"
             legacy = dict(cards_by_id)
@@ -63,25 +66,27 @@ class HistoryRepository:
         finally:
             connection.close()
 
-    def stats(self):
+    def stats(self, owner=""):
         with self.connect() as db:
             sessions, completed, answered = db.execute("""
-                SELECT COUNT(*), COUNT(completed_at), (SELECT COUNT(*) FROM attempts)
-                FROM sessions
-            """).fetchone()
+                SELECT COUNT(*), COUNT(completed_at),
+                    (SELECT COUNT(*) FROM attempts a JOIN sessions s ON s.id=a.session_id WHERE s.owner_id=?)
+                FROM sessions WHERE owner_id=?
+            """, (owner, owner)).fetchone()
         return {"sessions": sessions, "completed": completed, "answered": answered}
 
-    def history(self, page: int = 1, page_size: int = 30):
+    def history(self, page: int = 1, page_size: int = 30, *, owner=""):
         with self.connect() as db:
             db.row_factory = sqlite3.Row
-            total = db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+            total = db.execute("SELECT COUNT(*) FROM sessions WHERE owner_id=?", (owner,)).fetchone()[0]
             total_pages = max(1, (total + page_size - 1) // page_size)
             page = min(page, total_pages)
             sessions = [dict(row, topic=canonical_topic(row["topic"])) for row in db.execute("""
                 SELECT s.id, s.topic, s.created_at, s.completed_at,
                     COUNT(a.id) AS answered, ROUND(AVG(a.score)) AS score
                 FROM sessions s LEFT JOIN attempts a ON a.session_id=s.id
+                WHERE s.owner_id=?
                 GROUP BY s.id ORDER BY s.created_at DESC, s.rowid DESC LIMIT ? OFFSET ?
-            """, (page_size, (page - 1) * page_size))]
+            """, (owner, page_size, (page - 1) * page_size))]
         return {"sessions": sessions, "page": page, "page_size": page_size,
                 "total": total, "total_pages": total_pages}

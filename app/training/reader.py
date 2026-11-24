@@ -18,10 +18,13 @@ class SessionReader:
     def __init__(self, store):
         self.store = store
 
-    def state(self, session_id):
+    def state(self, session_id, *, owner=""):
         store = self.store
         with store.connect() as db:
-            row = db.execute("SELECT id, topic, question_ids, completed_at, current_index,profile,question_snapshots FROM sessions WHERE id=?", (session_id,)).fetchone()
+            row = db.execute("""
+                SELECT id,topic,question_ids,completed_at,current_index,profile,question_snapshots
+                FROM sessions WHERE id=? AND owner_id=?
+            """, (session_id, owner)).fetchone()
             if not row:
                 raise TrainingError(404, "Тренировка не найдена.")
             attempts = db.execute(
@@ -40,8 +43,8 @@ class SessionReader:
             # Imports or older writers can still create legacy rows after startup.
             saved = {str(identifier): prepare_card(store.legacy_cards[identifier]) for identifier in ids if identifier in store.legacy_cards}
             with store.connect() as db:
-                db.execute("UPDATE sessions SET question_snapshots=? WHERE id=? AND question_snapshots IS NULL",
-                           (json.dumps(saved, ensure_ascii=False), session_id))
+                db.execute("UPDATE sessions SET question_snapshots=? WHERE id=? AND owner_id=? AND question_snapshots IS NULL",
+                           (json.dumps(saved, ensure_ascii=False), session_id, owner))
             snapshots = {int(key): value for key, value in saved.items()}
         else:
             snapshots = {int(key): value for key, value in json.loads(row[6]).items()}
@@ -59,8 +62,11 @@ class SessionReader:
                                          for t in turns if t[1] == a[0]]} for a in attempts if a[0] in snapshots],
         }
 
-    def card(self, session_id, question_id):
+    def card(self, session_id, question_id, *, owner=""):
         with self.store.connect() as db:
-            raw = db.execute("SELECT question_snapshots FROM sessions WHERE id=?", (session_id,)).fetchone()[0]
-        return json.loads(raw)[str(question_id)]
+            row = db.execute("SELECT question_snapshots FROM sessions WHERE id=? AND owner_id=?",
+                             (session_id, owner)).fetchone()
+        if row is None:
+            raise TrainingError(404, "Тренировка не найдена.")
+        return json.loads(row[0])[str(question_id)]
 

@@ -136,6 +136,10 @@ document.addEventListener("click", async (event) => {
     else if (action === "history-page") { target.disabled = true; try { await renderHistory(Number(target.dataset.page)); } finally { target.disabled = false; } }
     else if (action === "open-session") { applySession(await api(`/sessions/${target.dataset.id}`)); storage.set("ml-session", state.session.id); location.hash = "training"; }
     else if (action === "reload") await route();
+    else if (action === "logout") {
+      await api("/beta/logout", { method: "POST" });
+      showBetaLogin();
+    }
     else if (action === "shutdown") { live.stop(); discardRecording(); cancelSpeech(); if (isDesktop()) { await window.pywebview.api.close(); return; } await api("/shutdown", { method: "POST" }); setPage(`<div class="empty-state">${icon("check")}<h3>Приложение остановлено</h3><p>Можно закрыть окно. Чтобы продолжить, снова нажми на ярлык ML Trainer.</p></div>`, "До встречи"); }
   } catch (error) { toast(error.message); }
 });
@@ -163,6 +167,7 @@ document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener(
 async function boot() {
   try {
     state.config = await api("/config");
+    syncBetaControls(state.config);
     syncVoiceControls();
     await trainerAvatar.load().catch(() => toast("Не удалось загрузить картинки аватара. Тренировка доступна."));
     $("#mode-badge").textContent = state.config.ai ? "AI-проверка" : "Демо-режим";
@@ -172,8 +177,10 @@ async function boot() {
     const sessionId = storage.get("ml-session");
     if (sessionId) { try { applySession(await api(`/sessions/${sessionId}`)); } catch { storage.remove("ml-session"); } }
     await route();
-  } catch {
-    setPage(`<div class="error-state">Не удалось подключиться к локальному серверу. Закрой окно и снова открой ярлык ML Trainer.</div>`, "Подключение");
+  } catch (error) {
+    if (error.status !== 401) {
+      setPage(`<div class="error-state">Не удалось подключиться к приложению. Обнови страницу и попробуй ещё раз.</div>`, "Подключение");
+    }
   }
 }
 boot();

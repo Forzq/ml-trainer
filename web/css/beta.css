@@ -1,0 +1,42 @@
+.beta-signed-out .sidebar,
+.beta-signed-out .topbar,
+.beta-signed-out .footer {
+  display: none;
+}
+
+.beta-signed-out .main {
+  margin-left: 0;
+}
+
+.beta-sign-in {
+  max-width: 420px;
+  margin: 12vh auto 0;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.beta-sign-in p {
+  color: var(--muted);
+}
+
+.beta-sign-in input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+#beta-login-error {
+  margin: 14px 0 0;
+  color: var(--ink);
+}
+
+button[data-action="logout"][hidden],
+button[data-action="shutdown"][hidden] {
+  display: none;
+}

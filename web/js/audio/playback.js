@@ -111,7 +111,7 @@ async function speak(text, { force = false } = {}) {
     try {
       const response = await fetch("/api/speech", {
         method: "POST", signal: controller.signal,
-        headers: { "Content-Type": "application/json", "X-App-Token": state.config.token },
+        headers: { "Content-Type": "application/json", "X-Mockroom-Client": "web", "X-App-Token": state.config.token },
         body: JSON.stringify({ text, tone: state.tone, voice: trainerVoice(), stream: true }),
       });
       if (!response.ok) {

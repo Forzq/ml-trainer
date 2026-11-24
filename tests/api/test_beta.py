@@ -1,0 +1,124 @@
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
+
+from fastapi.testclient import TestClient
+
+from app.beta.access import BetaAccess, COOKIE
+from app.beta.quotas import DEFAULT_ACCOUNT, GLOBAL, account_subject
+from app.core.config import Settings
+from app.questions.catalog import load_cards
+from app.server import create_app
+
+ORIGIN = "https://mockroom.dynv6.net"
+HEADERS = {"Origin": ORIGIN, "X-Mockroom-Client": "web"}
+
+
+def settings_at(path, **overrides):
+    values = dict(data_dir=path, beta_origin=ORIGIN, deepgram_key="", openai_key="",
+                  openrouter_key="", llm_base_url="", model="", embedding_model="",
+                  qdrant_url="", qdrant_key="", tts_provider="system", fish_key="")
+    return Settings(**(values | overrides))
+
+
+def test_beta_auth_scopes_all_training_endpoints_and_history(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.storage.store.load_cards", lambda: load_cards()[:2])
+    app = create_app(settings_at(tmp_path, deepgram_key="test-only"))
+    access = BetaAccess(tmp_path / "beta.sqlite3")
+    owner, _, first = access.issue("First", 60)
+    _, _, second = access.issue("Second", 60)
+    with TestClient(app, base_url=ORIGIN) as a, closing(TestClient(app, base_url=ORIGIN)) as b:
+        for path in ["/api/config", "/api/history", "/api/stats", "/api/cards", "/api/avatar"]:
+            assert a.get(path).status_code == 401
+        assert a.get("/").status_code == a.get("/api/health").status_code == 200
+        assert a.post("/api/beta/redeem", json={"code": first}).status_code == 403
+        assert a.post("/api/beta/redeem", headers=HEADERS | {"Origin": "https://elsewhere.test"},
+                      json={"code": first}).status_code == 403
+        response = a.post("/api/beta/redeem", headers=HEADERS, json={"code": first})
+        assert response.status_code == 200
+        assert {"secure", "httponly", "samesite=strict"} <= {
+            item.strip().lower() for item in response.headers["set-cookie"].split(";")
+        }
+        assert b.post("/api/beta/redeem", headers=HEADERS, json={"code": first}).status_code == 400
+        assert b.post("/api/beta/redeem", headers=HEADERS, json={"code": second}).status_code == 200
+        assert a.get("/api/config").json()["token"] == ""
+        assert a.post("/api/shutdown", headers=HEADERS).status_code == 404
+
+        created = a.post("/api/sessions", headers=HEADERS, json={"count": 1}).json()
+        url = "/api/sessions/" + created["id"]
+        question = {"question_id": created["question"]["id"]}
+        assert a.post(url + "/answer", headers=HEADERS, json=question | {"skip": True}).status_code == 200
+        assert a.post(url + "/discuss", headers=HEADERS, json=question | {"message": "Мой разбор"}).status_code == 200
+        assert a.get("/api/stats").json()["answered"] == 1
+        assert a.get("/api/history").json()["total"] == 1
+        assert b.get("/api/stats").json() == {"sessions": 0, "answered": 0, "completed": 0}
+        assert b.get("/api/history").json()["sessions"] == []
+        assert b.get(url).status_code == 404
+        for action in ["answer", "discuss", "next", "finish"]:
+            assert b.post(url + "/" + action, headers=HEADERS,
+                          json=question | {"message": "Test", "skip": True}).status_code == 404
+        assert b.post("/api/transcribe", headers=HEADERS, data=question | {"session_id": created["id"]},
+                      files={"audio": ("audio.webm", b"test", "audio/webm")}).status_code == 404
+
+        original = a.cookies.get(COOKIE)
+        assert a.post("/api/beta/logout", headers=HEADERS).status_code == 200
+        assert access.authenticate(original) is None
+        _, _, replacement = access.issue("", 60, account_id=owner)
+        assert a.post("/api/beta/redeem", headers=HEADERS, json={"code": replacement}).status_code == 200
+        replacement_token = a.cookies.get(COOKIE)
+        assert a.get(url).json()["attempts"][0]["discussion"][0]["message"] == "Мой разбор"
+    with TestClient(create_app(settings_at(tmp_path)), base_url=ORIGIN) as restarted:
+        restarted.cookies.set(COOKIE, replacement_token)
+        assert restarted.get(url).status_code == 200
+        assert access.revoke_account(owner)
+        assert restarted.get(url).status_code == 401
+
+
+def test_invite_can_be_redeemed_only_once_even_concurrently(tmp_path):
+    access = BetaAccess(tmp_path / "beta.sqlite3")
+    _, _, code = access.issue("Concurrent", 60)
+    _, invite, revoked = access.issue("Revoked", 60)
+    _, _, expired = access.issue("Expired", 0)
+    assert access.revoke_invite(invite)
+    assert access.redeem(revoked) is access.redeem(expired) is None
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        assert sum(bool(token) for token in executor.map(access.redeem, (code, code))) == 1
+
+
+def test_beta_daily_provider_limit_blocks_before_synthesis(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.storage.store.load_cards", lambda: load_cards()[:1])
+    settings = settings_at(tmp_path, tts_provider="fish", fish_key="test-only", beta_total_daily_limit=1)
+    app = create_app(settings)
+    access = BetaAccess(tmp_path / "beta.sqlite3")
+    first_id, _, first = access.issue("First", 60)
+    second_id, _, second = access.issue("Second", 60)
+    requests = []
+
+    async def synthesize(text, tone, *, voice):
+        requests.append(text)
+        return b"audio"
+
+    with TestClient(app, base_url=ORIGIN) as client:
+        quotas = BetaAccess(tmp_path / "beta.sqlite3").quotas
+        monkeypatch.setattr(app.state.speech, "synthesize", synthesize)
+        assert client.post("/api/beta/redeem", headers=HEADERS, json={"code": first}).status_code == 200
+        assert client.post("/api/speech", headers=HEADERS, json={"text": "first"}).status_code == 200
+        with closing(TestClient(app, base_url=ORIGIN)) as other:
+            assert other.post("/api/beta/redeem", headers=HEADERS, json={"code": second}).status_code == 200
+            blocked = other.post("/api/speech", headers=HEADERS, json={"text": "second"})
+            quotas.set_provider_limit(GLOBAL, 3)
+            quotas.set_provider_limit(account_subject(first_id), 1)
+            assert client.post("/api/speech", headers=HEADERS, json={"text": "blocked"}).status_code == 429
+            quotas.set_provider_limit(account_subject(second_id), 0)
+            assert other.post("/api/speech", headers=HEADERS, json={"text": "paused"}).status_code == 429
+            assert other.get("/api/history").status_code == 200
+            quotas.set_provider_limit(DEFAULT_ACCOUNT, 1)
+            quotas.set_provider_limit(account_subject(second_id), None)
+            assert other.post("/api/speech", headers=HEADERS, json={"text": "second"}).status_code == 200
+            assert other.post("/api/speech", headers=HEADERS, json={"text": "blocked"}).status_code == 429
+            quotas.set_provider_limit(account_subject(first_id), 2)
+            assert client.post("/api/speech", headers=HEADERS, json={"text": "extra"}).status_code == 200
+        assert blocked.status_code == 429 and int(blocked.headers["retry-after"]) > 0
+        assert requests == ["first", "second", "extra"]
+        used, total, default, _, accounts = quotas.provider_usage(settings.beta_identity_daily_limit, 1)
+        assert (used, total, default) == (3, 3, 1)
+        assert {row[0]: row[3:] for row in accounts} == {first_id: (2, 2, True), second_id: (1, 1, False)}

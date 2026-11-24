@@ -17,7 +17,7 @@ class TrainingService:
         self.evaluate = evaluate
         self.discuss = discuss
 
-    def new_session(self, body):
+    def new_session(self, body, *, owner=""):
         store = self.store
         if body.topic not in ["all"] + [t["id"] for t in TOPICS]:
             raise TrainingError(422, "Неизвестная тема.")
@@ -26,18 +26,21 @@ class TrainingService:
             raise TrainingError(422, "Для выбранной темы и сложности пока нет вопросов.")
         # Balance eligible topics and prefer less-practiced cards within each topic.
         with store.connect() as db:
-            counts = dict(db.execute("SELECT question_id, COUNT(*) FROM attempts GROUP BY question_id"))
+            counts = dict(db.execute("""
+                SELECT a.question_id, COUNT(*) FROM attempts a JOIN sessions s ON s.id=a.session_id
+                WHERE s.owner_id=? GROUP BY a.question_id
+            """, (owner,)))
             selected = select_questions(selected, counts, body.count, prioritize_interviews=body.prioritize_interviews)
             session_id = str(uuid.uuid4())
             profile = {"candidate_level": body.candidate_level, "specialization": next((t["name"] for t in TOPICS if t["id"] == body.topic), "Общий ML / Data Science")}
             snapshots = {str(card["id"]): card for card in selected}
-            db.execute("INSERT INTO sessions(id,topic,question_ids,profile,question_snapshots) VALUES(?,?,?,?,?)",
-                       (session_id, body.topic, json.dumps([c["id"] for c in selected]), json.dumps(profile, ensure_ascii=False), json.dumps(snapshots, ensure_ascii=False)))
-        return self.reader.state(session_id)
+            db.execute("INSERT INTO sessions(id,topic,question_ids,profile,question_snapshots,owner_id) VALUES(?,?,?,?,?,?)",
+                       (session_id, body.topic, json.dumps([c["id"] for c in selected]), json.dumps(profile, ensure_ascii=False), json.dumps(snapshots, ensure_ascii=False), owner))
+        return self.reader.state(session_id, owner=owner)
 
-    def answer(self, session_id, body):
+    def answer(self, session_id, body, *, owner=""):
         with self.lock:
-            state = self.reader.state(session_id)
+            state = self.reader.state(session_id, owner=owner)
             if state["completed"]:
                 raise TrainingError(409, "Эта тренировка уже завершена.")
             if state["reviewing"]:
@@ -47,7 +50,7 @@ class TrainingService:
             text = body.answer.strip()
             if not body.skip and not text:
                 raise TrainingError(422, "Напиши или запиши ответ.")
-            card = self.reader.card(session_id, body.question_id)
+            card = self.reader.card(session_id, body.question_id, owner=owner)
             if body.skip:
                 result = {"score": 0, "feedback": "Ориентир для ответа: " + card["reference"],
                           "covered": [], "missing": [c["label"] for c in card["criteria"]], "mode": "skipped"}
@@ -60,11 +63,11 @@ class TrainingService:
             with self.store.connect() as db:
                 db.execute("INSERT INTO attempts(session_id,question_id,answer,feedback,score,mode) VALUES(?,?,?,?,?,?)",
                            (session_id, body.question_id, text, json.dumps(result, ensure_ascii=False), result["score"], result["mode"]))
-            return {"evaluation": result, "session": self.reader.state(session_id)}
+            return {"evaluation": result, "session": self.reader.state(session_id, owner=owner)}
 
-    def discussion(self, session_id, body):
+    def discussion(self, session_id, body, *, owner=""):
         with self.lock:
-            state = self.reader.state(session_id)
+            state = self.reader.state(session_id, owner=owner)
             if state["completed"] or not state["reviewing"]:
                 raise TrainingError(409, "Обсуждение доступно после разбора текущего ответа.")
             if state["question"]["id"] != body.question_id:
@@ -74,7 +77,7 @@ class TrainingService:
                 raise TrainingError(422, "Напиши или запиши уточнение.")
             attempt = next(item for item in state["attempts"] if item["question"]["id"] == body.question_id)
             try:
-                card = self.reader.card(session_id, body.question_id)
+                card = self.reader.card(session_id, body.question_id, owner=owner)
                 result = self.discuss(card, attempt, text, self.settings, profile=state["profile"], voice=body.voice)
             except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
                 log_model_failure("discuss", self.settings.trainer_model_name, body.question_id, error)
@@ -82,25 +85,25 @@ class TrainingService:
             with self.store.connect() as db:
                 db.execute("INSERT INTO discussions(session_id,question_id,message,reply,mode) VALUES(?,?,?,?,?)",
                            (session_id, body.question_id, text, result["reply"], result["mode"]))
-            return {"discussion": result, "session": self.reader.state(session_id)}
+            return {"discussion": result, "session": self.reader.state(session_id, owner=owner)}
 
-    def next_question(self, session_id, body):
+    def next_question(self, session_id, body, *, owner=""):
         with self.lock:
-            state = self.reader.state(session_id)
+            state = self.reader.state(session_id, owner=owner)
             if state["completed"] or not state["reviewing"]:
                 raise TrainingError(409, "Сначала ответь на текущий вопрос или пропусти его.")
             if state["question"]["id"] != body.question_id:
                 raise TrainingError(409, "Вопрос уже изменился. Обнови тренировку.")
             with self.store.connect() as db:
                 if state["current_index"] + 1 >= state["total"]:
-                    db.execute("UPDATE sessions SET completed_at=CURRENT_TIMESTAMP WHERE id=?", (session_id,))
+                    db.execute("UPDATE sessions SET completed_at=CURRENT_TIMESTAMP WHERE id=? AND owner_id=?", (session_id, owner))
                 else:
-                    db.execute("UPDATE sessions SET current_index=current_index+1 WHERE id=?", (session_id,))
-            return self.reader.state(session_id)
+                    db.execute("UPDATE sessions SET current_index=current_index+1 WHERE id=? AND owner_id=?", (session_id, owner))
+            return self.reader.state(session_id, owner=owner)
 
-    def finish(self, session_id):
+    def finish(self, session_id, *, owner=""):
         with self.lock:
-            self.reader.state(session_id)
+            self.reader.state(session_id, owner=owner)
             with self.store.connect() as db:
-                db.execute("UPDATE sessions SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP) WHERE id=?", (session_id,))
-            return self.reader.state(session_id)
+                db.execute("UPDATE sessions SET completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP) WHERE id=? AND owner_id=?", (session_id, owner))
+            return self.reader.state(session_id, owner=owner)

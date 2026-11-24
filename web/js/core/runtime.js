@@ -1,15 +1,20 @@
 "use strict";
 
 async function api(path, options = {}) {
-  const headers = { "X-App-Token": state.config?.token || "", ...options.headers };
+  const headers = { "X-Mockroom-Client": "web", "X-App-Token": state.config?.token || "", ...options.headers };
   if (options.body && !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(options.body);
   }
   const response = await fetch(`/api${path}`, { ...options, headers });
-  const result = await response.json();
-  if (!response.ok) throw new Error(typeof result.detail === "string" ? result.detail : "Не удалось выполнить запрос. Попробуй ещё раз.");
-  return result;
+  if (response.status === 401 && (path === "/config" || state.config?.beta)) showBetaLogin();
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    const error = new Error(typeof result.detail === "string" ? result.detail : "Не удалось выполнить запрос. Попробуй ещё раз.");
+    error.status = response.status;
+    throw error;
+  }
+  return await response.json();
 }
 
 function toast(message) {

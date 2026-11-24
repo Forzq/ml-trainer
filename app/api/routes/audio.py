@@ -1,7 +1,7 @@
 """Speech recognition, conservative transcript editing and audio playback endpoints."""
 import logging
 import httpx
-from fastapi import APIRouter, HTTPException, File, Form, UploadFile
+from fastapi import APIRouter, HTTPException, File, Form, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from app.audio.speech import SpeechError
 from app.audio.recognition import RecognitionError, recognize_audio
@@ -15,7 +15,7 @@ def create_router(app):
     router = APIRouter()
 
     @router.post("/api/transcribe")
-    async def transcribe(audio: UploadFile = File(...), session_id: str | None = Form(None),
+    async def transcribe(request: Request, audio: UploadFile = File(...), session_id: str | None = Form(None),
                          question_id: int | None = Form(None)):
         if not settings.stt_enabled:
             raise HTTPException(409, "Для распознавания добавь DEEPGRAM_API_KEY или OPENAI_API_KEY в .env и перезапусти приложение.")
@@ -28,7 +28,7 @@ def create_router(app):
         if (session_id is None) != (question_id is None):
             raise HTTPException(422, "Для контекста записи нужны сессия и вопрос.")
         if session_id is not None:
-            current = app.state.sessions.state(session_id)
+            current = app.state.sessions.state(session_id, owner=request.state.owner)
             if current["completed"] or current["question"]["id"] != question_id:
                 raise HTTPException(409, "Вопрос уже изменился. Запиши ответ на текущий вопрос.")
             context = current["question"]
