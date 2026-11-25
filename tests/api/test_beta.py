@@ -98,6 +98,28 @@ def test_invite_can_be_redeemed_only_once_even_concurrently(tmp_path):
         assert sum(bool(token) for token in executor.map(access.redeem, (code, code))) == 1
 
 
+def test_shared_invite_capacity_is_atomic_and_creates_separate_accounts(tmp_path):
+    access = BetaAccess(tmp_path / "beta.sqlite3")
+    _, code = access.issue_shared(3, 60)
+    assert access.accounts() == []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        tokens = list(filter(None, executor.map(access.redeem, [code] * 8)))
+    owners = {access.authenticate(token) for token in tokens}
+    assert len(tokens) == len(owners) == 3
+    assert {account for account, _, _ in access.accounts()} == owners
+    assert set(access.registration_times()) == owners
+    assert access.display_names() == {}
+    assert access.redeem(code) is None
+
+    identifier, partial = access.issue_shared(2, 60)
+    first = access.redeem(partial)
+    assert first and access.revoke_invite(identifier)
+    assert access.redeem(partial) is None
+    assert access.authenticate(first)
+    _, expired = access.issue_shared(1, 0)
+    assert access.redeem(expired) is None
+
+
 def test_beta_daily_provider_limit_blocks_before_synthesis(tmp_path, monkeypatch):
     monkeypatch.setattr("app.storage.store.load_cards", lambda: load_cards()[:1])
     settings = settings_at(tmp_path, tts_provider="fish", fish_key="test-only", beta_total_daily_limit=1)
@@ -218,27 +240,36 @@ def test_beta_blocks_off_topic_answers_and_discussion_before_trainer(tmp_path, m
         messages = payload["messages"]
         data = json.loads(messages[-1]["content"])
         if payload["max_tokens"] == 256:
+            assert payload["model"] == "google/gemini-2.5-flash-lite"
             assert payload["response_format"] == {"type": "json_object"}
-            assert set(data) == {"phase", "question", "message"}
+            if data["phase"] == "answer":
+                assert set(data) == {"phase", "question", "message"}
+            elif data["message"] == "А в проде это как заметить?":
+                assert data["previous_trainer_reply"] == "Вот пример по карточке."
+            else:
+                assert data["previous_trainer_reply"] == "Разбор."
             calls.append(("scope", data["phase"]))
             if data["message"] == "Формат ответа":
                 content = '{"allowed":"true"}'
             else:
                 content = json.dumps({"allowed": not data["message"].startswith("Напиши сценарий")})
         elif "student_answer" in data:
+            assert payload["model"] == "test-model"
             calls.append(("evaluate", data["student_answer"]))
             content = json.dumps({"feedback": "Разбор.", "criterion_results": [
                 {"id": criterion["id"], "status": "not_answered", "credit": 0, "evidence": ""}
                 for criterion in data["criteria"]
             ]})
         else:
+            assert payload["model"] == "test-model"
             calls.append(("discuss", data["message"]))
             assert "Не выполняй постороннюю просьбу" in messages[0]["content"]
             assert len(messages) == 2
             content = "Вот пример по карточке."
         return httpx.Response(200, request=httpx.Request("POST", url), json={"choices": [{"message": {"content": content}}]})
 
-    app = create_app(settings_at(tmp_path, openrouter_key="test-only", model="test-model"))
+    app = create_app(settings_at(tmp_path, openrouter_key="test-only", model="test-model",
+                                 scope_model="google/gemini-2.5-flash-lite"))
     access = BetaAccess(tmp_path / "beta.sqlite3")
     _, _, code = access.issue("Guard", 60)
     with TestClient(app, base_url=ORIGIN) as client:
@@ -266,9 +297,11 @@ def test_beta_blocks_off_topic_answers_and_discussion_before_trainer(tmp_path, m
         assert send("discuss", "message", "Формат ответа").status_code == 502
         assert client.get(endpoint).json()["attempts"][0]["discussion"] == []
         assert send("discuss", "message", "Почему? Можешь привести пример?").status_code == 200
+        assert send("discuss", "message", "А в проде это как заметить?").status_code == 200
         assert calls == [
             ("scope", "answer"), ("scope", "answer"), ("evaluate", "Не знаю."),
             ("scope", "discussion"), ("scope", "discussion"), ("scope", "discussion"),
             ("discuss", "Почему? Можешь привести пример?"),
+            ("scope", "discussion"), ("discuss", "А в проде это как заметить?"),
         ]
-        assert client.get("/api/beta/quota").json()["remaining"] == 25
+        assert client.get("/api/beta/quota").json()["remaining"] == 24

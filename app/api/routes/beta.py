@@ -25,7 +25,7 @@ def create_router(access, settings):
                               message="Слишком много попыток входа. Попробуй через минуту.")
         token = access.redeem(body.code.strip())
         if token is None:
-            raise HTTPException(400, "Приглашение недействительно, просрочено или уже использовано.")
+            raise HTTPException(400, "Приглашение недействительно, просрочено или все места заняты.")
         response.set_cookie(COOKIE, token, max_age=SESSION_SECONDS, secure=True, httponly=True, samesite="strict")
         return {"ok": True}
 

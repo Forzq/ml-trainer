@@ -23,16 +23,22 @@ class TrainingService:
         self.discuss = discuss
         self.reserve_provider = reserve_provider
 
-    def _admit_input(self, owner, card, text, *, discussion):
+    def _admit_input(self, owner, card, text, *, attempt=None):
         if obvious_redirect(text):
             raise TrainingError(422, SCOPE_REFUSAL)
         if not self.reserve_provider or not self.settings.ai_enabled:
             return
         self.reserve_provider(owner)
+        previous_reply = None
+        if attempt is not None:
+            previous_reply = next(
+                (turn["reply"] for turn in reversed(attempt["discussion"]) if turn["mode"] == "ai_scoped"),
+                attempt["feedback"],
+            )
         try:
-            allowed = check_scope(card, text, self.settings, discussion=discussion)
+            allowed = check_scope(card, text, self.settings, discussion=attempt is not None, previous_reply=previous_reply)
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
-            log_model_failure("scope", self.settings.trainer_model_name, card["id"], error)
+            log_model_failure("scope", self.settings.scope_model_name, card["id"], error)
             raise TrainingError(502, "Не удалось проверить тему сообщения. Оно осталось в поле ввода. Попробуй ещё раз.") from None
         if not allowed:
             raise TrainingError(422, SCOPE_REFUSAL)
@@ -88,7 +94,7 @@ class TrainingService:
                 result = {"score": 0, "feedback": "Ориентир для ответа: " + card["reference"],
                           "covered": [], "missing": [c["label"] for c in card["criteria"]], "mode": "skipped"}
             else:
-                self._admit_input(owner, card, text, discussion=False)
+                self._admit_input(owner, card, text)
                 try:
                     result = self.evaluate(card, text, self.settings, profile=state["profile"], voice=body.voice)
                 except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
@@ -111,7 +117,7 @@ class TrainingService:
                 raise TrainingError(422, "Напиши или запиши уточнение.")
             attempt = next(item for item in state["attempts"] if item["question"]["id"] == body.question_id)
             card = self.reader.card(session_id, body.question_id, owner=owner)
-            self._admit_input(owner, card, text, discussion=True)
+            self._admit_input(owner, card, text, attempt=attempt)
             try:
                 result = self.discuss(card, attempt, text, self.settings, profile=state["profile"], voice=body.voice)
             except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError, AttributeError) as error:

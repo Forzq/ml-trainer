@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>Администрирование · Mockroom</title>
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="icon" type="image/png" href="/static/mockroom-logo-purple.png">
   <link rel="stylesheet" href="/static/css/admin.css">
   <script src="/static/js/pages/admin.js" defer></script>
 </head>
 <body>
   <header class="top">
-    <div class="brand"><img src="/static/favicon.svg" alt="" width="32" height="32"> Mockroom</div>
+    <div class="brand"><img src="/static/mockroom-logo-purple.png" alt="" width="40" height="40"> Mockroom</div>
     <a href="/">Открыть тренажёр</a>
   </header>
   <main>
@@ -56,14 +56,14 @@
         </section>
       </div>
       <section class="panel invitations">
-        <h2>Одноразовое приглашение</h2>
+        <h2>Приглашение</h2>
         <form id="new-invite" class="invite-form">
-          <label>Имя или метка участника <input name="label" required maxlength="80"></label>
+          <label>Количество участников <input name="capacity" type="number" min="1" max="9007199254740991" value="1" required></label>
           <label>Действует, часов <input name="hours" type="number" min="1" max="720" value="72" required></label>
           <button class="primary" type="submit">Создать код</button>
         </form>
         <div id="invite-result" class="invite-form" hidden>
-          <label>Одноразовый код <input id="invite-output" readonly autocomplete="off" spellcheck="false"></label>
+          <label><span id="invite-label">Код приглашения</span><input id="invite-output" readonly autocomplete="off" spellcheck="false"></label>
           <button id="copy-invite" type="button">Скопировать</button>
         </div>
       </section>
@@ -90,7 +90,13 @@
   </main>
   <template id="account-row">
     <tr>
-      <th scope="row"><span class="account-name"></span><small class="account-label" hidden></small><small class="account-state"></small><code class="account-id"></code></th>
+      <th scope="row">
+        <span class="account-name"></span>
+        <small class="account-label" hidden></small>
+        <small class="account-state"></small>
+        <small class="account-registration"></small>
+        <code class="account-id"></code>
+      </th>
       <td class="account-used"></td>
       <td class="account-remaining"></td>
       <td>

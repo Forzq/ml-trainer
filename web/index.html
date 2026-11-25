@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#101017">
-  <title>ML Trainer — практика машинного обучения</title>
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <title>Mockroom — практика машинного обучения</title>
+  <link rel="icon" href="/static/mockroom-logo-purple.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/mockroom-logo-purple.png">
   <script src="/static/js/core/theme.js"></script>
   <link rel="stylesheet" href="/static/css/style.css">
   <link rel="stylesheet" href="/static/css/themes.css">
@@ -52,7 +53,7 @@
   </svg>
 
   <aside class="sidebar">
-    <a class="brand" href="#home" aria-label="ML Trainer — главная"><span class="brand-mark">m<span>l</span></span><span>ML Trainer<small>практика ML-интервью</small></span></a>
+    <a class="brand" href="#home" aria-label="Mockroom — главная"><img class="brand-mark" src="/static/mockroom-logo-purple.png" alt="" width="42" height="42"><span>Mockroom<small>практика ML-интервью</small></span></a>
     <nav aria-label="Основная навигация">
       <a class="nav-link active" href="#home" data-page="home" aria-label="Обзор" title="Обзор"><svg><use href="#i-grid"/></svg><span class="nav-text">Обзор</span><span class="nav-dot"></span></a>
       <a class="nav-link" href="#library" data-page="library" aria-label="Банк вопросов" title="Банк вопросов"><svg><use href="#i-cards"/></svg><span class="nav-text">Банк вопросов</span><span id="nav-count" class="nav-count">—</span></a>
@@ -65,7 +66,7 @@
 
   <main class="main">
     <header class="topbar">
-      <div class="breadcrumb">ML Trainer <span>/</span> <strong id="page-label">Обзор</strong></div>
+      <div class="breadcrumb"><span class="breadcrumb-path">Mockroom <span>/</span></span> <strong id="page-label">Обзор</strong></div>
       <div class="topbar-right">
         <button class="speech-indicator" id="speech-indicator" type="button" aria-label="Остановить озвучку" title="Остановить озвучку" hidden></button>
         <div class="beta-quota" id="beta-quota" hidden>
@@ -76,7 +77,7 @@
       </div>
     </header>
     <div id="app-content" class="page-content"><div class="loading-state"><span class="spinner"></span><p>Готовим пространство для практики…</p></div></div>
-    <footer class="footer"><span>ML Trainer</span><span>История сохраняется автоматически</span></footer>
+    <footer class="footer"><span>Mockroom</span><span>История сохраняется автоматически</span></footer>
   </main>
 
   <dialog id="start-dialog" class="modal">
@@ -150,8 +151,10 @@
           <div id="connection-settings"></div>
         </section>
       </div>
-      <button class="shutdown-button" data-action="shutdown" type="button">Остановить приложение</button>
-      <button class="button" data-action="logout" type="button" hidden>Выйти из профиля</button>
+      <div class="settings-actions">
+        <button class="shutdown-button" data-action="shutdown" type="button">Остановить приложение</button>
+        <button class="button" data-action="logout" type="button" hidden>Выйти из профиля</button>
+      </div>
     </div>
   </template>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

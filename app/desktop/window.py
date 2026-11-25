@@ -125,4 +125,4 @@ def open_window(server, on_loaded=None, profile_path=None, *, title=TITLE):
     profile.mkdir(parents=True, exist_ok=True)
     webview.settings["ALLOW_FILE_URLS"] = False
     webview.start(gui="edgechromium", private_mode=False, storage_path=str(profile),
-                  icon=str(ROOT / "web/app.ico"), debug=False)
+                  icon=str(ROOT / "web/mockroom.ico"), debug=False)

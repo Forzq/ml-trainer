@@ -21,6 +21,16 @@
   color: var(--muted);
 }
 
+.beta-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.beta-brand img { flex-shrink: 0; }
+.beta-brand h1 { margin: 0; font-size: clamp(24px, 6vw, 36px); }
+
 .beta-sign-in input {
   width: 100%;
   padding: 12px;

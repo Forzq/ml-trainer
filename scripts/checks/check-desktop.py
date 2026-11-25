@@ -75,6 +75,11 @@ def main():
                 assert window.evaluate_js("document.documentElement.dataset.theme") == "dark"
                 window.evaluate_js("document.querySelector('[data-page=settings]').click(); true")
                 wait_js(window, "Boolean(document.querySelector('#theme-choice'))")
+                assert window.evaluate_js("getComputedStyle(document.querySelector('#theme-choice')).appearance === 'none'")
+                assert window.evaluate_js("""
+                    document.querySelector('.settings-actions').getBoundingClientRect().top -
+                    document.querySelector('.settings-grid').getBoundingClientRect().bottom >= 20
+                """)
                 window.evaluate_js("const choice = document.querySelector('#theme-choice'); choice.value='light'; choice.dispatchEvent(new Event('change')); true")
                 wait_js(window, "document.documentElement.dataset.theme === 'light'")
                 window.evaluate_js("const choice = document.querySelector('#theme-choice'); choice.value='dark'; choice.dispatchEvent(new Event('change')); true")

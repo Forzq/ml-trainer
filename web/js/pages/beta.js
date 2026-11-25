@@ -15,7 +15,7 @@ function showBetaLogin() {
   document.body.classList.add("beta-signed-out");
   setPage(`
     <section class="beta-sign-in">
-      <h1>Mockroom</h1>
+      <div class="beta-brand"><img src="/static/mockroom-logo-purple.png" alt="" width="48" height="48"><h1>Mockroom</h1></div>
       <p>Введи код приглашения, чтобы открыть закрытую бету.</p>
       <form id="beta-login">
         <label class="field-label" for="invite-code">Код приглашения</label>
@@ -48,7 +48,7 @@ function showBetaName() {
   document.body.classList.add("beta-signed-out");
   setPage(`
     <section class="beta-sign-in">
-      <h1>Как тебя зовут?</h1>
+      <div class="beta-brand"><img src="/static/mockroom-logo-purple.png" alt="" width="48" height="48"><h1>Как тебя зовут?</h1></div>
       <p>Имя будет видно администратору беты.</p>
       <form id="beta-profile">
         <label class="field-label" for="display-name">Имя</label>

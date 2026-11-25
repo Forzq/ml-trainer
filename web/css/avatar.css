@@ -18,6 +18,7 @@
 @media (max-width: 850px) {
   .training-side:has(#trainer-avatar:not([hidden])) { display: block; grid-row: 1; }
   .training-side > .side-card { display: none; }
+  .trainer-avatar-card { margin-bottom: 0; }
   .trainer-avatar-stage { height: 160px; }
   .trainer-avatar-image { max-height: 148px; }
   .trainer-portrait-stack { max-height: 148px; }

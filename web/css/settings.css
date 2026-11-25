@@ -40,9 +40,17 @@
 .settings-card .voice-preview { margin-top: 16px; }
 .settings-wide { grid-column: 1 / -1; }
 .settings-connections { gap: 10px; }
-.settings-connections .connection { margin: 0; }
+.settings-connections .connection { margin: 0; flex-wrap: wrap; gap: 8px 14px; }
+.settings-connections .connection > div { flex: 1 1 7rem; }
 .settings-details { margin-bottom: 0; }
-.settings-page .shutdown-button { margin: 22px 0 0 auto; padding: 8px 0; font-size: 12px; }
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block-start: 24px;
+}
+.settings-actions .shutdown-button { margin: 0; padding: 8px 0; font-size: 12px; }
 
 @media (max-width: 950px) {
   .settings-grid { grid-template-columns: 1fr; }

@@ -38,12 +38,18 @@ class NewInvitation(BaseModel):
     hours: int = Field(default=72, ge=1, le=720)
 
 
+class SharedInvitation(BaseModel):
+    capacity: int = Field(strict=True, ge=1, le=2**53 - 1)
+    hours: int = Field(default=72, ge=1, le=720)
+
+
 def usage_status(access, settings):
     used, maximum, default, reset, accounts = access.quotas.provider_usage(
         settings.beta_identity_daily_limit, settings.beta_total_daily_limit,
     )
     names = access.display_names()
     notes = access.account_notes()
+    registrations = access.registration_times()
     remaining = max(0, maximum - used)
     return {
         "build": current_build(),
@@ -52,6 +58,7 @@ def usage_status(access, settings):
         "reset_at": reset,
         "accounts": [
             {"id": identifier, "label": label, "display_name": names.get(identifier),
+             "registered_at": registrations.get(identifier),
              "active": bool(active), "used": count,
              "limit": limit, "custom": custom, "notes": notes.get(identifier, []),
              "remaining": min(max(0, limit - count), remaining) if active else 0}
@@ -131,6 +138,11 @@ def create_router(access, administrator, settings):
             raise HTTPException(422, "Введи имя или метку участника.")
         account_id, _, code = access.issue(label, body.hours * 3600)
         return {"account_id": account_id, "code": code}
+
+    @router.post("/api/admin/shared-invites", status_code=201)
+    def create_shared_invite(body: SharedInvitation):
+        invite_id, code = access.issue_shared(body.capacity, body.hours * 3600)
+        return {"invite_id": invite_id, "capacity": body.capacity, "code": code}
 
     @router.get("/api/admin/openrouter")
     def openrouter_budget():

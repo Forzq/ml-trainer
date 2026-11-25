@@ -69,8 +69,8 @@ th, td { text-align: left; vertical-align: top; padding: 12px 8px; border-bottom
 thead th, small, code, dt { color: var(--muted); font-size: .82rem; }
 tbody tr:last-child > * { border-bottom: 0; }
 tbody th { overflow-wrap: anywhere; }
-.account-name, .account-label, .account-state, .account-id { display: block; }
-.account-label, .account-state, .account-id { margin-top: 3px; font-weight: 400; }
+.account-name, .account-label, .account-state, .account-registration, .account-id { display: block; }
+.account-label, .account-state, .account-registration, .account-id { margin-top: 3px; font-weight: 400; }
 .account-limit { flex-wrap: wrap; }
 .account-limit input { width: 88px; }
 .reset-usage { margin-top: 8px; }

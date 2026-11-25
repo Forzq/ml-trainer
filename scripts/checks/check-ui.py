@@ -353,6 +353,8 @@ def main():
                 page.reload()
                 expect(page.get_by_role("heading", name="Практика завершена")).to_be_visible()
                 assert page.evaluate("state.volume === 0.15 && state.sound === false && state.tone === 'very_calm_slow'")
+                page.set_viewport_size({"width": 320, "height": 640})
+                assert page.locator(".result-numbers").evaluate("row => row.scrollWidth <= row.clientWidth")
                 page.get_by_role("button", name="На главную", exact=True).click()
                 page.set_viewport_size({"width": 390, "height": 844})
                 expect(page.get_by_role("heading", name="Время разобраться в ML")).to_be_visible()
@@ -361,6 +363,14 @@ def main():
                 settings_link.click()
                 expect(page.get_by_role("heading", name="Настройки", exact=True)).to_be_visible()
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile settings overflow"
+                assert page.locator("#theme-choice").evaluate("select => parseFloat(getComputedStyle(select).paddingRight) >= 32")
+                page.set_viewport_size({"width": 320, "height": 640})
+                page.locator('[data-page="library"]').click()
+                expect(page.locator(".question-card").first).to_be_visible()
+                expect(page.locator(".question-card > p").first).to_have_css("font-size", "15px")
+                for selector in (".page-title", ".level-filter"):
+                    assert page.locator(selector).evaluate("block => block.scrollWidth <= block.clientWidth"), selector
+                page.set_viewport_size({"width": 390, "height": 844})
                 overview_link.click()
                 # More than one history page must not truncate the home counters.
                 before_stats = httpx.get(url + "/api/stats").json()

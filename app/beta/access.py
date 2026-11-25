@@ -29,6 +29,14 @@ class BetaAccess:
                     id TEXT PRIMARY KEY, digest TEXT NOT NULL UNIQUE, account_id TEXT NOT NULL,
                     expires_at INTEGER NOT NULL, used_at INTEGER, revoked INTEGER NOT NULL DEFAULT 0
                 );
+                CREATE TABLE IF NOT EXISTS shared_invites (
+                    id TEXT PRIMARY KEY, digest TEXT NOT NULL UNIQUE, expires_at INTEGER NOT NULL,
+                    capacity INTEGER NOT NULL CHECK(capacity > 0), revoked INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS shared_invite_redemptions (
+                    account_id TEXT PRIMARY KEY, invite_id TEXT NOT NULL, registered_at INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS shared_redemptions_invite ON shared_invite_redemptions(invite_id);
                 CREATE TABLE IF NOT EXISTS logins (
                     digest TEXT PRIMARY KEY, account_id TEXT NOT NULL, expires_at INTEGER NOT NULL
                 );
@@ -46,6 +54,12 @@ class BetaAccess:
     def connect(self):
         return sqlite3.connect(self.path, timeout=10)
 
+    @staticmethod
+    def _create_account(db, label, now):
+        account_id = uuid.uuid4().hex
+        db.execute("INSERT INTO accounts VALUES (?, ?, 1, ?)", (account_id, label, now))
+        return account_id
+
     def issue(self, label, valid_for, *, account_id=None):
         code = secrets.token_urlsafe(24)
         now = int(time.time())
@@ -57,27 +71,45 @@ class BetaAccess:
                 if not exists:
                     raise ValueError("Active beta account not found.")
             else:
-                account_id = uuid.uuid4().hex
-                db.execute("INSERT INTO accounts VALUES (?, ?, 1, ?)", (account_id, label, now))
+                account_id = self._create_account(db, label, now)
             db.execute("INSERT INTO invites(id,digest,account_id,expires_at) VALUES (?,?,?,?)",
                        (invite_id, digest(code), account_id, now + valid_for))
         return account_id, invite_id, code
 
+    def issue_shared(self, capacity, valid_for):
+        code = secrets.token_urlsafe(24)
+        invite_id = uuid.uuid4().hex
+        with closing(self.connect()) as db, db:
+            db.execute("INSERT INTO shared_invites(id,digest,expires_at,capacity) VALUES (?,?,?,?)",
+                       (invite_id, digest(code), int(time.time()) + valid_for, capacity))
+        return invite_id, code
+
     def redeem(self, code):
-        now = int(time.time())
+        code_digest = digest(code)
         with closing(self.connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            now = int(time.time())
             row = db.execute("""
                 SELECT i.account_id FROM invites i JOIN accounts a ON a.id=i.account_id
                 WHERE i.digest=? AND i.used_at IS NULL AND i.revoked=0 AND i.expires_at>?
                     AND a.active=1
-            """, (digest(code), now)).fetchone()
-            if row is None:
-                return None
+            """, (code_digest, now)).fetchone()
+            if row:
+                account_id = row[0]
+                db.execute("UPDATE invites SET used_at=? WHERE digest=?", (now, code_digest))
+            else:
+                invite = db.execute("""
+                    SELECT id FROM shared_invites i
+                    WHERE i.digest=? AND i.revoked=0 AND i.expires_at>?
+                        AND (SELECT COUNT(*) FROM shared_invite_redemptions WHERE invite_id=i.id) < i.capacity
+                """, (code_digest, now)).fetchone()
+                if not invite:
+                    return None
+                account_id = self._create_account(db, "", now)
+                db.execute("INSERT INTO shared_invite_redemptions VALUES (?,?,?)", (account_id, invite[0], now))
             token = secrets.token_urlsafe(32)
-            db.execute("UPDATE invites SET used_at=? WHERE digest=?", (now, digest(code)))
             db.execute("DELETE FROM logins WHERE expires_at<=?", (now,))
-            db.execute("INSERT INTO logins VALUES (?,?,?)", (digest(token), row[0], now + SESSION_SECONDS))
+            db.execute("INSERT INTO logins VALUES (?,?,?)", (digest(token), account_id, now + SESSION_SECONDS))
             return token
 
     def authenticate(self, token):
@@ -103,6 +135,16 @@ class BetaAccess:
     def display_names(self):
         with closing(self.connect()) as db:
             return dict(db.execute("SELECT account_id, display_name FROM account_profiles"))
+
+    def registration_times(self):
+        with closing(self.connect()) as db:
+            return dict(db.execute("""
+                SELECT account_id, MIN(registered_at) FROM (
+                    SELECT account_id, used_at AS registered_at FROM invites WHERE used_at IS NOT NULL
+                    UNION ALL
+                    SELECT account_id, registered_at FROM shared_invite_redemptions
+                ) GROUP BY account_id
+            """))
 
     def save_display_name(self, account_id, name):
         with closing(self.connect()) as db, db:
@@ -130,8 +172,10 @@ class BetaAccess:
 
     def revoke_invite(self, invite_id):
         with closing(self.connect()) as db, db:
-            return bool(db.execute("UPDATE invites SET revoked=1 WHERE id=? AND used_at IS NULL",
-                                   (invite_id,)).rowcount)
+            single = db.execute("UPDATE invites SET revoked=1 WHERE id=? AND used_at IS NULL",
+                                (invite_id,)).rowcount
+            shared = db.execute("UPDATE shared_invites SET revoked=1 WHERE id=?", (invite_id,)).rowcount
+            return bool(single or shared)
 
     def revoke_account(self, account_id):
         with closing(self.connect()) as db, db:

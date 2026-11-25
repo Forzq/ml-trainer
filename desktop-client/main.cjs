@@ -1,6 +1,10 @@
 const { app, BrowserWindow, dialog, session } = require("electron");
+const path = require("node:path");
 
 const origin = "https://mockroom.dynv6.net";
+const icon = app.isPackaged
+  ? path.join(process.resourcesPath, "mockroom.ico")
+  : path.join(__dirname, "..", "web", "mockroom.ico");
 
 function isMockroom(url) {
   return URL.canParse(url) && new URL(url).origin === origin;
@@ -46,6 +50,7 @@ async function openMockroom(window) {
     const { response } = await dialog.showMessageBox(window, {
       type: "error",
       title: "Mockroom",
+      icon,
       message: "Не удалось открыть Mockroom",
       detail: "Проверь подключение к интернету и повтори попытку.",
       buttons: ["Повторить", "Закрыть"],

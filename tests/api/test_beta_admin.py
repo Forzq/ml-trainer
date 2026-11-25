@@ -1,4 +1,6 @@
 from contextlib import closing
+from time import time
+from types import SimpleNamespace
 
 import httpx
 from fastapi.testclient import TestClient
@@ -118,7 +120,47 @@ def test_admin_invites_notes_and_personal_quota_reset(tmp_path, monkeypatch):
         code = invite.json()["code"]
         accounts = operator.get("/api/admin/usage")
         assert code not in accounts.text
-        assert next(item for item in accounts.json()["accounts"] if item["id"] == invite.json()["account_id"])["notes"] == []
-        assert invited.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 200
+        new_account = invite.json()["account_id"]
+        row = next(item for item in accounts.json()["accounts"] if item["id"] == new_account)
+        assert row["notes"] == [] and row["registered_at"] is None
+        registered = int(time()) - 30
+        with monkeypatch.context() as clock:
+            clock.setattr("app.beta.access.time", SimpleNamespace(time=lambda: registered))
+            assert invited.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 200
         assert invited.post("/api/beta/logout", headers=HEADERS).status_code == 200
         assert invited.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 400
+        _, _, replacement = access.issue("", 60, account_id=new_account)
+        assert invited.post("/api/beta/redeem", headers=HEADERS, json={"code": replacement}).status_code == 200
+        row = next(item for item in operator.get("/api/admin/usage").json()["accounts"] if item["id"] == new_account)
+        assert row["registered_at"] == registered
+
+
+def test_admin_shared_invitation_accepts_names_from_participants(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.storage.store.load_cards", lambda: load_cards()[:1])
+    settings = Settings(data_dir=tmp_path, beta_origin=ORIGIN, embedding_model="", qdrant_url="")
+    app = create_app(settings)
+    access = BetaAccess(tmp_path / "beta.sqlite3")
+    AdminAccess(access.connect).set_credentials(**CREDENTIALS)
+    route = "/api/admin/shared-invites"
+    with (TestClient(app, base_url=ORIGIN) as operator,
+          closing(TestClient(app, base_url=ORIGIN)) as first,
+          closing(TestClient(app, base_url=ORIGIN)) as second,
+          closing(TestClient(app, base_url=ORIGIN)) as third):
+        assert third.post(route, headers=HEADERS, json={"capacity": 2}).status_code == 401
+        assert operator.post("/api/admin/login", headers=HEADERS, json=CREDENTIALS).status_code == 200
+        assert operator.post(route, headers=HEADERS, json={"capacity": 0}).status_code == 422
+        result = operator.post(route, headers=HEADERS, json={"capacity": 2})
+        assert result.status_code == 201 and result.json()["capacity"] == 2
+        code = result.json()["code"]
+        assert access.accounts() == []
+        for client, name in ((first, "Анна"), (second, "Максим")):
+            assert client.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 200
+            assert client.get("/api/config").json()["display_name"] is None
+            assert client.put("/api/beta/profile", headers=HEADERS, json={"name": name}).status_code == 200
+        assert third.post("/api/beta/redeem", headers=HEADERS, json={"code": code}).status_code == 400
+        owners = operator.get("/api/admin/usage")
+        assert code not in owners.text
+        participants = owners.json()["accounts"]
+        assert {row["display_name"] for row in participants} == {"Анна", "Максим"}
+        assert len({row["id"] for row in participants}) == 2
+        assert all(row["registered_at"] is not None for row in participants)

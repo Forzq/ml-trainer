@@ -63,6 +63,8 @@ function renderAccounts() {
     label.textContent = account.label;
     const state = account.active ? (account.limit === 0 ? "На паузе" : "Активен") : "Отключён";
     find(".account-state").textContent = state + " · " + (account.custom ? "своя квота" : "по умолчанию");
+    find(".account-registration").textContent = account.registered_at == null
+      ? "Ожидает входа" : "Регистрация " + date.format(account.registered_at * 1000);
     find(".account-id").textContent = account.id;
     find(".account-used").textContent = number.format(account.used);
     find(".account-remaining").textContent = number.format(account.remaining);
@@ -230,15 +232,14 @@ byId("new-invite").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   void action(form.querySelector("button"), async () => {
-    const { code } = await adminApi("invites", "POST", {
-      label: form.elements.label.value,
+    const { code, capacity } = await adminApi("shared-invites", "POST", {
+      capacity: Number(form.elements.capacity.value),
       hours: Number(form.elements.hours.value),
     });
     byId("invite-output").value = code;
+    byId("invite-label").textContent = "Код приглашения · мест " + number.format(capacity);
     byId("invite-result").hidden = false;
-    form.elements.label.value = "";
     message("status", "Приглашение создано.");
-    render(await adminApi("usage"));
   });
 });
 byId("copy-invite").addEventListener("click", async () => {
