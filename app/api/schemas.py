@@ -6,6 +6,7 @@ from app.core.config import TrainerVoice
 
 class NewSession(BaseModel):
     topic: str = "all"
+    skill: str | None = Field(default=None, pattern=r"^[a-z0-9-]+$", max_length=64)
     level: Literal["all", "Junior", "Middle", "Senior"] = "all"
     candidate_level: Literal["Junior", "Middle", "Senior"] = "Middle"
     count: int = Field(default=4, ge=1, le=20)

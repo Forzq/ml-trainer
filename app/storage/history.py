@@ -90,3 +90,12 @@ class HistoryRepository:
             """, (owner, page_size, (page - 1) * page_size))]
         return {"sessions": sessions, "page": page, "page_size": page_size,
                 "total": total, "total_pages": total_pages}
+
+    def question_grades(self, owner=""):
+        with self.connect() as db:
+            return dict(db.execute("""
+                SELECT a.question_id, MAX(CASE WHEN a.mode = 'ai' THEN a.score END)
+                FROM sessions s JOIN attempts a ON a.session_id = s.id
+                WHERE s.owner_id = ? AND a.mode <> 'skipped'
+                GROUP BY a.question_id
+            """, (owner,)))

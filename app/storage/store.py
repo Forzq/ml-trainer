@@ -3,6 +3,7 @@ import hashlib
 import json
 
 from app.core.config import Settings
+from app.progress.catalog import ProgressCatalog
 from app.questions.catalog import load_cards
 from app.search.embeddings import Embeddings
 from app.search.index import QuestionIndex
@@ -12,6 +13,7 @@ from app.storage.history import HistoryRepository
 class Store:
     def __init__(self, settings: Settings):
         self.cards = load_cards()
+        self.progress_catalog = ProgressCatalog(self.cards)
         catalog_bytes = json.dumps(self.cards, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
         self.catalog_version = hashlib.sha256(catalog_bytes).hexdigest()
         settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -43,6 +45,9 @@ class Store:
 
     def history(self, page=1, page_size=30, *, owner=""):
         return self.history_repository.history(page, page_size, owner=owner)
+
+    def question_grades(self, owner=""):
+        return self.history_repository.question_grades(owner)
 
     def close(self):
         self.index.close()

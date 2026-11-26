@@ -434,9 +434,42 @@ def main():
                 page.get_by_role("button", name="Следующий вопрос", exact=True).click()
                 page.wait_for_function("state.session.current_index === 1")
                 assert page.evaluate("state.session.question.topic_id") != first_topic
+
+                metric_ids = [card["id"] for card in store.progress_catalog.cards_for("classical_ml", "metrics")]
+                with store.connect() as db:
+                    db.execute("INSERT INTO sessions(id, topic, question_ids) VALUES ('progress-example', 'classical_ml', ?)", (json.dumps(metric_ids),))
+                    db.executemany("INSERT INTO attempts(session_id, question_id, answer, feedback, score, mode) VALUES ('progress-example', ?, 'Ответ', '{}', 85, 'ai')",
+                                   [(identifier,) for identifier in metric_ids])
+                page.get_by_role("link", name="Прогресс", exact=True).click()
+                expect(page.locator(".progress-node")).to_have_count(6)
+                expect(page.locator(".progress-total strong")).to_have_text(f"{len(metric_ids)}/{len(store.cards)}")
+                page.screenshot(path=str(ROOT / "logs/preview-progress.png"), full_page=True)
+                page.locator('a[href="#progress/classical_ml"]').click()
+                metrics_node = page.locator('a[href="#progress/classical_ml/metrics"]')
+                expect(metrics_node).to_contain_text("100%")
+                metrics_node.click()
+                expect(page.locator("#progress-detail-title")).to_have_text("Метрики и пороги")
+                expect(page.get_by_role("heading", name="Калибровка", exact=True)).to_be_visible()
+                page.screenshot(path=str(ROOT / "logs/preview-progress-topic.png"), full_page=True)
+                for width in (1360, 1180, 1120, 900, 780, 610, 390, 320):
+                    page.set_viewport_size({"width": width, "height": 760})
+                    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), width
+                    assert page.locator(".progress-graph").evaluate("""graph => {
+                        const cards = [...graph.querySelectorAll('.progress-root, .progress-node')].map(el => el.getBoundingClientRect());
+                        return cards.every((a, i) => cards.slice(i + 1).every(b =>
+                            a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top));
+                    }"""), width
+                assert metrics_node.evaluate("node => node.querySelector('strong').getBoundingClientRect().bottom <= node.querySelector('.progress-node-meta').getBoundingClientRect().top")
+                page.screenshot(path=str(ROOT / "logs/preview-progress-mobile.png"), full_page=True)
+                page.locator("#progress-practice").click()
+                expect(page.locator("#session-skill")).to_have_text("Метрики и пороги")
+                expect(page.locator("#session-topic")).to_be_disabled()
+                page.locator('#start-form button[type="submit"]').click()
+                page.wait_for_function("state.session?.topic === 'classical_ml' && !!document.querySelector('#answer-input')")
+                assert page.evaluate("state.session.question.id") in metric_ids
                 assert errors == [], errors
                 browser.close()
-                print(json.dumps({"result": "passed", "checks": ["dark default", "theme switching and persistence", "home", "settings", "topic session", "draft restore", "demo evaluation", "skip", "results", "history", "vector search", "microphone recording and release", "Fish playback and stop", "late TTS response cancellation", "automatic feedback narration", "manual replay while auto off", "live volume without new request", "zero volume", "voice preferences persistence", "mobile layout", "global counters beyond 30 sessions", "history pagination and old session replay", "balanced all-topic session"], "javascript_errors": errors}, ensure_ascii=False))
+                print(json.dumps({"result": "passed", "checks": ["dark default", "theme switching and persistence", "home", "settings", "topic session", "draft restore", "demo evaluation", "skip", "results", "history", "vector search", "microphone recording and release", "Fish playback and stop", "late TTS response cancellation", "automatic feedback narration", "manual replay while auto off", "live volume without new request", "zero volume", "voice preferences persistence", "mobile layout", "global counters beyond 30 sessions", "history pagination and old session replay", "balanced all-topic session", "progress graph and skill practice"], "javascript_errors": errors}, ensure_ascii=False))
         finally:
             server.should_exit = True
             thread.join(timeout=30)

@@ -71,8 +71,9 @@ syncTheme();
 async function route() {
   if (!state.config) return;
   if (state.busy) { toast("Дождись завершения запроса."); history.replaceState(null, "", `#${state.page}`); return; }
-  const page = location.hash.slice(1) || "home";
-  const nextPage = ["home", "library", "history", "training", "settings"].includes(page) ? page : "home";
+  const [page, ...path] = location.hash.slice(1).split("/");
+  const nextPage = ["home", "library", "progress", "history", "training", "settings"].includes(page) ? page : "home";
+  const previousPage = state.page;
   if (live.enabled) {
     if (nextPage === "settings") {
       if (live.running) live.pause("Настройки открыты. Вернись к тренировке и нажми «Продолжить».");
@@ -86,6 +87,7 @@ async function route() {
   try {
     if (state.page === "home") await renderHome();
     else if (state.page === "library") await renderLibrary();
+    else if (state.page === "progress") await renderProgress(path, previousPage !== "progress");
     else if (state.page === "history") await renderHistory();
     else if (state.page === "settings") renderSettings();
     else {

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/static/css/polish.css">
   <link rel="stylesheet" href="/static/css/settings.css">
   <link rel="stylesheet" href="/static/css/beta.css">
+  <link rel="stylesheet" href="/static/css/progress.css">
   <script src="/static/js/avatar/portrait.js" defer></script>
   <script src="/static/js/avatar/turntable.js" defer></script>
   <script src="/static/js/avatar/avatar.js" defer></script>
@@ -25,6 +26,7 @@
   <script src="/static/js/pages/results.js" defer></script>
   <script src="/static/js/pages/library.js" defer></script>
   <script src="/static/js/pages/history.js" defer></script>
+  <script src="/static/js/pages/progress.js" defer></script>
   <script src="/static/js/audio/playback.js" defer></script>
   <script src="/static/js/audio/recording.js" defer></script>
   <script src="/static/js/core/state.js" defer></script>
@@ -41,6 +43,7 @@
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
     <symbol id="i-cards" viewBox="0 0 24 24"><rect x="5" y="7" width="15" height="14" rx="3"/><path d="M16 3H5a3 3 0 0 0-3 3v10M9 12h7m-7 4h4"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 12h3m0 0V6h3m-3 6v6h3"/><rect x="3" y="9" width="6" height="6" rx="1.5"/><rect x="15" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="15" width="6" height="6" rx="1.5"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></symbol>
@@ -58,6 +61,7 @@
     <nav aria-label="Основная навигация">
       <a class="nav-link active" href="#home" data-page="home" aria-label="Обзор" title="Обзор"><svg><use href="#i-grid"/></svg><span class="nav-text">Обзор</span><span class="nav-dot"></span></a>
       <a class="nav-link" href="#library" data-page="library" aria-label="Банк вопросов" title="Банк вопросов"><svg><use href="#i-cards"/></svg><span class="nav-text">Банк вопросов</span><span id="nav-count" class="nav-count">—</span></a>
+      <a class="nav-link" href="#progress" data-page="progress" aria-label="Прогресс" title="Прогресс"><svg><use href="#i-map"/></svg><span class="nav-text">Прогресс</span></a>
       <a class="nav-link" href="#history" data-page="history" aria-label="История" title="История"><svg><use href="#i-clock"/></svg><span class="nav-text">История</span></a>
     </nav>
     <div class="sidebar-bottom">
@@ -90,6 +94,7 @@
         <p class="helper">Тренер сам озвучивает вопрос, слушает ответ и даёт разбор. После разбора — 6 секунд на уточнение, затем следующий вопрос. Разрешение микрофона понадобится при запуске.</p>
       </div>
       <label class="field-label" for="session-topic">Тема</label><select id="session-topic"></select>
+      <p class="session-skill" id="session-skill" hidden></p>
       <label class="field-label" for="candidate-level">Уровень собеседования</label><select id="candidate-level"><option value="Junior">Junior</option><option value="Middle" selected>Middle</option><option value="Senior">Senior</option></select>
       <label class="field-label" for="session-level">Сложность вопросов</label><select id="session-level"><option value="all">Все уровни</option><option value="Junior">Junior</option><option value="Middle">Middle</option><option value="Senior">Senior</option></select>
       <p class="helper">Уровень собеседования задаёт глубину разбора. Для повторения основ можно оставить сложность «Все уровни».</p>

@@ -16,7 +16,7 @@ from app.training.service import TrainingService
 from app.training.errors import TrainingError
 from app.api.admission import limit_response
 from app.api.security import install_security
-from app.api.routes import system, catalog, history, sessions, audio, beta, beta_admin
+from app.api.routes import system, catalog, history, progress, sessions, audio, beta, beta_admin
 from app.api.routes.avatar import avatar_router
 from app.beta.access import BetaAccess
 from app.beta.admin_access import AdminAccess
@@ -71,7 +71,7 @@ def create_app(settings: Settings | None = None):
         app.include_router(beta_admin.create_router(access, administrator, settings))
     app.include_router(avatar_router())
     app.include_router(system.create_router(app, access))
-    for module in (catalog, history, sessions, audio):
+    for module in (catalog, history, progress, sessions, audio):
         app.include_router(module.create_router(app))
 
     @app.exception_handler(TrainingError)

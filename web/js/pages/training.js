@@ -1,9 +1,22 @@
 "use strict";
 
-function showStart(topic = "all") {
+let sessionSkill = null;
+
+function showStart(topic = "all", skill = null) {
   if (live.running) live.pause("Выбор новой тренировки открыт. Текущий вопрос сохранён.");
-  $("#session-topic").innerHTML = `<option value="all">Все темы · ${state.config.cards} вопросов</option>` + state.config.topics.map((item) => `<option value="${item.id}" ${item.count ? "" : "disabled"}>${escapeHTML(item.name)} · ${item.count ? item.count + " вопросов" : "скоро"}</option>`).join("");
-  $("#session-topic").value = topic;
+  sessionSkill = skill;
+  const topicField = $("#session-topic");
+  topicField.innerHTML = `<option value="all">Все темы · ${state.config.cards} вопросов</option>` + state.config.topics.map((item) => `<option value="${item.id}" ${item.count ? "" : "disabled"}>${escapeHTML(item.name)} · ${item.count ? item.count + " вопросов" : "скоро"}</option>`).join("");
+  topicField.value = topic;
+  topicField.disabled = Boolean(skill);
+  const skillLabel = $("#session-skill");
+  skillLabel.textContent = skill?.name ?? "";
+  skillLabel.hidden = !skill;
+  const levelField = $("#session-level");
+  for (const option of levelField.options) {
+    option.disabled = Boolean(skill && option.value !== "all" && !skill.levels[option.value]);
+  }
+  if (levelField.selectedOptions[0]?.disabled) levelField.value = "all";
   const candidateLevel = storage.get("ml-candidate-level");
   $("#candidate-level").value = ["Junior", "Middle", "Senior"].includes(candidateLevel) ? candidateLevel : "Middle";
   $("#prioritize-interviews").checked = storage.get("ml-interview-priority") !== "off";
@@ -14,7 +27,7 @@ function showStart(topic = "all") {
 function updateSessionCounts() {
   const topicId = $("#session-topic").value;
   const level = $("#session-level").value;
-  const available = state.config.topics.reduce((count, topic) => {
+  const available = sessionSkill ? (level === "all" ? sessionSkill.total : sessionSkill.levels[level]) : state.config.topics.reduce((count, topic) => {
     if (topicId !== "all" && topicId !== topic.id) return count;
     return count + (level === "all" ? topic.count : topic.levels[level]);
   }, 0);
@@ -57,6 +70,7 @@ async function startSession(event) {
     const prioritizeInterviews = $("#prioritize-interviews").checked;
     applySession(await api("/sessions", { method: "POST", body: {
       topic: $("#session-topic").value, level: $("#session-level").value, candidate_level: candidateLevel,
+      skill: sessionSkill?.id,
       count: Number($("#session-count").value) || 1, prioritize_interviews: prioritizeInterviews,
     } }));
     storage.set("ml-candidate-level", candidateLevel);

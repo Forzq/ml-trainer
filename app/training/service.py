@@ -46,7 +46,13 @@ class TrainingService:
         store = self.store
         if body.topic not in ["all"] + [t["id"] for t in TOPICS]:
             raise TrainingError(422, "Неизвестная тема.")
-        selected = store.search(topic=body.topic, level=body.level)
+        if body.skill:
+            candidates = store.progress_catalog.cards_for(body.topic, body.skill)
+            if candidates is None:
+                raise TrainingError(422, "Неизвестная подтема для выбранного направления.")
+            selected = [card for card in candidates if body.level in ("all", card["level"])]
+        else:
+            selected = store.search(topic=body.topic, level=body.level)
         if not selected:
             raise TrainingError(422, "Для выбранной темы и сложности пока нет вопросов.")
         # Balance eligible topics and prefer less-practiced cards within each topic.
