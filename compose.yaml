@@ -1,0 +1,14 @@
+services:
+  trainer:
+    build: .
+    # On the Linux VPS the existing entry point binds to the host's loopback.
+    network_mode: host
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - trainer-data:/opt/ml-trainer/data
+    restart: unless-stopped
+
+volumes:
+  trainer-data:

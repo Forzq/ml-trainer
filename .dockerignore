@@ -1,0 +1,13 @@
+*
+!requirements.txt
+!Dockerfile
+!app/
+!app/**
+!web/
+!web/**
+!content/
+!content/questions.json
+!content/question-versions-v1.json
+**/__pycache__/
+**/.env
+**/.env.*

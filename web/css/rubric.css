@@ -1,0 +1,15 @@
+.rubric-breakdown { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11px; }
+.rubric-breakdown summary, .optional-followups summary { cursor: pointer; color: var(--ink); font-size: 11px; line-height: 1.6; }
+.rubric-breakdown > p, .optional-followups p { color: var(--muted); font-size: 10px; line-height: 1.7; }
+.rubric-row { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.rubric-row > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rubric-row strong { white-space: nowrap; font-size: 11px; }
+.rubric-row p { margin: 8px 0; font-size: 11px; line-height: 1.7; }
+.rubric-row blockquote { margin: 0; padding: 4px 0 4px 10px; border-left: 2px solid #a78bfa; color: var(--muted); font-size: 10px; line-height: 1.7; overflow-wrap: anywhere; }
+.rubric-status { font-size: 10px; }
+.rubric-status.correct { color: #69b99b; }
+.rubric-status.partial { color: #a78bfa; }
+.rubric-status.incorrect { color: #d98ba2; }
+.rubric-status.not_answered { color: var(--muted); }
+.optional-followups { padding: 13px 22px; border-top: 1px solid var(--line); background: #a855f707; }
+.optional-followups ol { padding-left: 18px; font-size: 11px; line-height: 1.8; color: var(--muted); }

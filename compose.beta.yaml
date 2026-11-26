@@ -1,0 +1,33 @@
+name: mockroom-beta
+services:
+  trainer:
+    build:
+      context: .
+      args:
+        MOCKROOM_SOURCE_COMMIT: "${MOCKROOM_SOURCE_COMMIT:-}"
+        MOCKROOM_SOURCE_DIRTY: "${MOCKROOM_SOURCE_DIRTY:-}"
+    network_mode: host
+    env_file: .env
+    environment:
+      MOCKROOM_PORT: "8766"
+      MOCKROOM_BETA_ORIGIN: https://mockroom.dynv6.net
+      OPENROUTER_EMBEDDING_MODEL: ""
+      QDRANT_URL: ""
+      QDRANT_API_KEY: ""
+    volumes:
+      - beta-data:/opt/ml-trainer/data
+    restart: unless-stopped
+  caddy:
+    image: caddy:2
+    profiles: [edge]
+    network_mode: host
+    depends_on: [trainer]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+volumes:
+  beta-data:
+  caddy-data:
+  caddy-config:

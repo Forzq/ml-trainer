@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101017">
+  <title>Mockroom — практика машинного обучения</title>
+  <link rel="icon" href="/static/mockroom-logo-purple.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/mockroom-logo-purple.png">
+  <script src="/static/js/core/theme.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/themes.css">
+  <link rel="stylesheet" href="/static/css/avatar.css">
+  <link rel="stylesheet" href="/static/css/rubric.css">
+  <link rel="stylesheet" href="/static/css/polish.css">
+  <link rel="stylesheet" href="/static/css/settings.css">
+  <link rel="stylesheet" href="/static/css/beta.css">
+  <script src="/static/js/avatar/portrait.js" defer></script>
+  <script src="/static/js/avatar/turntable.js" defer></script>
+  <script src="/static/js/avatar/avatar.js" defer></script>
+  <script src="/static/js/audio/live.js" defer></script>
+  <script src="/static/js/components/views.js" defer></script>
+  <script src="/static/js/pages/home.js" defer></script>
+  <script src="/static/js/pages/training.js" defer></script>
+  <script src="/static/js/pages/results.js" defer></script>
+  <script src="/static/js/pages/library.js" defer></script>
+  <script src="/static/js/pages/history.js" defer></script>
+  <script src="/static/js/audio/playback.js" defer></script>
+  <script src="/static/js/audio/recording.js" defer></script>
+  <script src="/static/js/core/state.js" defer></script>
+  <script src="/static/js/core/runtime.js" defer></script>
+  <script src="/static/js/avatar/presenter.js" defer></script>
+  <script src="/static/js/audio/live-panel.js" defer></script>
+  <script src="/static/js/pages/settings.js" defer></script>
+  <script src="/static/js/audio/controls.js" defer></script>
+  <script src="/static/js/pages/beta.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+    <symbol id="i-cards" viewBox="0 0 24 24"><rect x="5" y="7" width="15" height="14" rx="3"/><path d="M16 3H5a3 3 0 0 0-3 3v10M9 12h7m-7 4h4"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2m-7 9v3m-4 0h8"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  </svg>
+
+  <aside class="sidebar">
+    <a class="brand" href="#home" aria-label="Mockroom — главная"><img class="brand-mark" src="/static/mockroom-logo-purple.png" alt="" width="42" height="42"><span>Mockroom<small>практика ML-интервью</small></span></a>
+    <nav aria-label="Основная навигация">
+      <a class="nav-link active" href="#home" data-page="home" aria-label="Обзор" title="Обзор"><svg><use href="#i-grid"/></svg><span class="nav-text">Обзор</span><span class="nav-dot"></span></a>
+      <a class="nav-link" href="#library" data-page="library" aria-label="Банк вопросов" title="Банк вопросов"><svg><use href="#i-cards"/></svg><span class="nav-text">Банк вопросов</span><span id="nav-count" class="nav-count">—</span></a>
+      <a class="nav-link" href="#history" data-page="history" aria-label="История" title="История"><svg><use href="#i-clock"/></svg><span class="nav-text">История</span></a>
+    </nav>
+    <div class="sidebar-bottom">
+      <a class="nav-link" href="#settings" data-page="settings" aria-label="Настройки" title="Настройки"><svg><use href="#i-settings"/></svg><span class="nav-text">Настройки</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="breadcrumb"><span class="breadcrumb-path">Mockroom <span>/</span></span> <strong id="page-label">Обзор</strong></div>
+      <div class="topbar-right">
+        <button class="speech-indicator" id="speech-indicator" type="button" aria-label="Остановить озвучку" title="Остановить озвучку" hidden></button>
+        <div class="beta-quota" id="beta-quota" hidden>
+          <span id="beta-quota-text">Запросы на сегодня</span>
+          <progress id="beta-quota-bar" aria-label="Остаток дневной квоты" value="0" max="1"></progress>
+        </div>
+        <span class="demo-badge" id="mode-badge" hidden></span>
+      </div>
+    </header>
+    <div id="app-content" class="page-content"><div class="loading-state"><span class="spinner"></span><p>Готовим пространство для практики…</p></div></div>
+    <footer class="footer"><span>Mockroom</span><span>История сохраняется автоматически</span></footer>
+  </main>
+
+  <dialog id="start-dialog" class="modal">
+    <div class="modal-heading"><div><span class="eyebrow">НОВАЯ ТРЕНИРОВКА</span><h2>С чего начнём?</h2></div><button class="icon-button" id="close-start" aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+    <form id="start-form">
+      <label class="field-label" for="session-mode">Режим</label>
+      <select id="session-mode"><option value="manual">Текст и голос</option><option value="live">Голосовой диалог</option></select>
+      <div id="live-options" class="live-options" hidden>
+        <p class="helper">Тренер сам озвучивает вопрос, слушает ответ и даёт разбор. После разбора — 6 секунд на уточнение, затем следующий вопрос. Разрешение микрофона понадобится при запуске.</p>
+      </div>
+      <label class="field-label" for="session-topic">Тема</label><select id="session-topic"></select>
+      <label class="field-label" for="candidate-level">Уровень собеседования</label><select id="candidate-level"><option value="Junior">Junior</option><option value="Middle" selected>Middle</option><option value="Senior">Senior</option></select>
+      <label class="field-label" for="session-level">Сложность вопросов</label><select id="session-level"><option value="all">Все уровни</option><option value="Junior">Junior</option><option value="Middle">Middle</option><option value="Senior">Senior</option></select>
+      <p class="helper">Уровень собеседования задаёт глубину разбора. Для повторения основ можно оставить сложность «Все уровни».</p>
+      <label class="field-label" for="session-count">Количество вопросов</label><select id="session-count"><option value="2">2 вопроса · короткая практика</option><option value="4" selected>4 вопроса · обычная практика</option><option value="6">6 вопросов · расширенная практика</option><option value="10">10 вопросов</option><option value="20">20 вопросов</option></select>
+      <label class="interview-priority"><input id="prioritize-interviews" type="checkbox" checked> Приоритет вопросам из записей интервью</label>
+      <button class="button primary full" type="submit">Начать тренировку <svg><use href="#i-arrow"/></svg></button>
+    </form>
+  </dialog>
+  <template id="settings-template">
+    <div class="settings-page">
+      <div class="page-title">
+        <h1>Настройки</h1>
+        <button class="button small" type="button" data-action="resume" id="settings-resume" hidden>К тренировке</button>
+      </div>
+      <div class="settings-grid">
+        <div class="settings-column">
+          <section class="settings-card" aria-labelledby="settings-voice">
+            <h2 id="settings-voice">Голос тренера</h2>
+            <div id="voice-choice" hidden>
+              <label class="field-label" for="trainer-voice">Голос Fish Audio</label>
+              <select id="trainer-voice"><option value="female">Женский</option><option value="male">Мужской</option></select>
+            </div>
+            <div id="voice-tone-field" hidden>
+              <label class="field-label" for="voice-tone">Интонация</label>
+              <select id="voice-tone">
+                <option value="natural">Естественная</option><option value="calm">Спокойная</option>
+                <option value="very_calm_slow">Очень спокойно и медленно</option>
+                <option value="friendly">Дружелюбная</option><option value="excited">Энергичная</option>
+                <option value="soft">Мягкая</option><option value="whisper">Шёпот</option>
+              </select>
+            </div>
+            <label class="voice-volume-label field-label" for="voice-volume">Громкость <output id="voice-volume-output" for="voice-volume">75%</output></label>
+            <input id="voice-volume" type="range" min="0" max="100" step="1" value="75">
+            <label class="auto-speech-label"><input id="auto-speech" type="checkbox" checked> Озвучивать ответы автоматически</label>
+            <button class="button small voice-preview" data-action="preview-voice" type="button">Послушать голос</button>
+          </section>
+          <section class="settings-card" aria-labelledby="settings-live">
+            <h2 id="settings-live">Голосовой диалог</h2>
+            <label class="field-label" for="live-silence">Пауза до отправки ответа</label>
+            <select id="live-silence"><option value="1800">1,8 секунды · быстро</option><option value="3000" selected>3 секунды · обычно</option><option value="5000">5 секунд · время подумать</option></select>
+            <label class="field-label" for="live-sensitivity">Чувствительность микрофона</label>
+            <select id="live-sensitivity"><option value="0.007">Тихий голос</option><option value="0.012" selected>Обычная</option><option value="0.025">Шумная комната</option></select>
+          </section>
+        </div>
+        <div class="settings-column">
+          <section class="settings-card" aria-labelledby="settings-appearance">
+            <h2 id="settings-appearance">Оформление</h2>
+            <label class="field-label" for="theme-choice">Цветовая тема</label>
+            <select id="theme-choice"><option value="dark">Тёмная</option><option value="light">Светлая</option></select>
+          </section>
+          <section class="settings-card" id="avatar-settings" aria-labelledby="settings-avatar">
+            <h2 id="settings-avatar" tabindex="-1">Аватар тренера</h2>
+            <label class="avatar-visible-label" id="avatar-visible-label"><input type="checkbox" id="avatar-visible" checked> Показывать аватар в тренировке</label>
+            <label class="field-label" for="avatar-preset">Персонаж</label>
+            <select id="avatar-preset" disabled></select>
+            <small class="avatar-credit" id="avatar-credit" hidden>Модель Zhuier · CC BY 4.0</small>
+          </section>
+        </div>
+        <section class="settings-card settings-wide" aria-labelledby="settings-connections">
+          <h2 id="settings-connections" tabindex="-1">Подключения</h2>
+          <div id="connection-settings"></div>
+        </section>
+      </div>
+      <div class="settings-actions">
+        <button class="shutdown-button" data-action="shutdown" type="button">Остановить приложение</button>
+        <button class="button" data-action="logout" type="button" hidden>Выйти из профиля</button>
+      </div>
+    </div>
+  </template>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

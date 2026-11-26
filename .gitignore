@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.pytest-tmp/
+.env
+data/
+logs/
+*.lnk
+*.ico
+!/web/mockroom.ico
+/desktop-client/node_modules/
+/desktop-client/dist/

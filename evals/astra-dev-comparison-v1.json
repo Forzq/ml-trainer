@@ -1,0 +1,1682 @@
+{
+  "provenance": "Agreement with automated silver, not human accuracy; see reference protocol deviation",
+  "new_run": "logs/judge-evals/20261117T121517Z-f0c51f00",
+  "prior_run": "logs/judge-evals/20261117T114130Z-7dd67e90",
+  "attempted": 40,
+  "valid": 38,
+  "failures": 2,
+  "status_matches": 113,
+  "credit_matches": 113,
+  "criterion_total": 120,
+  "score_matches": 37,
+  "random_agreement_sample": [
+    "q351-1681a38e8d",
+    "q449-4a743bc7f5",
+    "q145-1c75d5746e",
+    "q251-f60ee445df"
+  ],
+  "new_predictions_sha256": "f0aecca25fc2e02f5eadf447446fff3ebf7a4a8563393e1b1808b16fea4ba91c",
+  "cases": [
+    {
+      "case_id": "q57-c4a0b21ed7",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q57-52c69f3ebf",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q57-4c81ffeb15",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q57-c728df7e41",
+      "score": 42,
+      "allowed_scores": [
+        42,
+        51
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "partial",
+          "allowed_credits": [
+            1,
+            2
+          ],
+          "actual_status": "partial",
+          "actual_credit": 1
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q57-c42ecae162",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q57-53f7a15bee",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q57-3aa50bb6c8",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q57-4a743bc7f5",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q145-01d6c66b24",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q145-1c75d5746e",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q145-d66ddde5b5",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q145-9e8ffe9f6f",
+      "score": 59,
+      "allowed_scores": [
+        51,
+        59
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "partial",
+          "allowed_credits": [
+            2,
+            3
+          ],
+          "actual_status": "partial",
+          "actual_credit": 3
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q145-f5a78db5ce",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q145-ea40314eff",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q145-3aa50bb6c8",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q145-4a743bc7f5",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q251-c0e05c15f2",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q251-6b854c6fa5",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q251-0fcc2987e5",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q251-6985751167",
+      "score": 59,
+      "allowed_scores": [
+        51,
+        59
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "partial",
+          "allowed_credits": [
+            2,
+            3
+          ],
+          "actual_status": "partial",
+          "actual_credit": 3
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q251-ae73e2c643",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q251-f60ee445df",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q251-3aa50bb6c8",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q251-4a743bc7f5",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q351-40d153f824",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q351-8d10fe5718",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q351-1f26117aa2",
+      "score": null,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": false,
+      "criteria": []
+    },
+    {
+      "case_id": "q351-ead1e759ad",
+      "score": 42,
+      "allowed_scores": [
+        42,
+        51
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "partial",
+          "allowed_credits": [
+            1,
+            2
+          ],
+          "actual_status": "partial",
+          "actual_credit": 1
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q351-1b24a35eca",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q351-1681a38e8d",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q351-3aa50bb6c8",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q351-4a743bc7f5",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q449-0c5d47d191",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q449-3a3b3c9723",
+      "score": 100,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q449-8a49a47d02",
+      "score": 92,
+      "allowed_scores": [
+        100
+      ],
+      "score_match": false,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        },
+        {
+          "id": "c2",
+          "status_match": false,
+          "credit_match": false,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "partial",
+          "actual_credit": 3
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "correct",
+          "allowed_credits": [
+            4
+          ],
+          "actual_status": "correct",
+          "actual_credit": 4
+        }
+      ]
+    },
+    {
+      "case_id": "q449-d521b7338d",
+      "score": null,
+      "allowed_scores": [
+        42,
+        51
+      ],
+      "score_match": false,
+      "criteria": []
+    },
+    {
+      "case_id": "q449-c854719e01",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q449-4702b9fe1b",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "incorrect",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "incorrect",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q449-3aa50bb6c8",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    },
+    {
+      "case_id": "q449-4a743bc7f5",
+      "score": 0,
+      "allowed_scores": [
+        0
+      ],
+      "score_match": true,
+      "criteria": [
+        {
+          "id": "c1",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c2",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        },
+        {
+          "id": "c3",
+          "status_match": true,
+          "credit_match": true,
+          "expected_status": "not_answered",
+          "allowed_credits": [
+            0
+          ],
+          "actual_status": "not_answered",
+          "actual_credit": 0
+        }
+      ]
+    }
+  ]
+}

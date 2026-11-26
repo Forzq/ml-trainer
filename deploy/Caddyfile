@@ -1,0 +1,19 @@
+{
+	admin off
+}
+
+mockroom.dynv6.net {
+	@audio path /api/transcribe
+	@other not path /api/transcribe
+	request_body @audio {
+		max_size 22MiB
+	}
+	request_body @other {
+		max_size 64KiB
+	}
+	header {
+		Strict-Transport-Security "max-age=86400"
+		X-Frame-Options "DENY"
+	}
+	reverse_proxy 127.0.0.1:8766
+}

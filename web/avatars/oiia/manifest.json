@@ -1,0 +1,14 @@
+{
+  "id": "oiia",
+  "name": "Кот OIIA",
+  "kind": "turntable",
+  "voices": ["female", "male"],
+  "width": 384,
+  "height": 256,
+  "columns": 6,
+  "frames": 36,
+  "files": {
+    "base": "base.webp",
+    "spin": "turntable.webp"
+  }
+}

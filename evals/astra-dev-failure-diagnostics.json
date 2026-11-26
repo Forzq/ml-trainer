@@ -1,0 +1,10 @@
+{
+  "source": "Safe trainer warning output captured during the actual 32-request run",
+  "run": "logs/judge-evals/20261117T121517Z-f0c51f00",
+  "note": "Runner records ValueError with http_status null because HTTP 200 succeeded. The parser warning retains actual HTTP status and finish reason. No raw body, headers or secrets stored here.",
+  "failures": [
+    {"case_id":"q351-1f26117aa2","http_status":200,"generation_id":"gen-1794917806-dNADn1HCcp39hK2F7uKg","provider":"River","finish_reason":"length","native_finish_reason":"length","prompt_tokens":1389,"completion_tokens":2000,"total_tokens":3389,"content_length":null,"error_type":"ValueError"},
+    {"case_id":"q449-d521b7338d","http_status":200,"generation_id":"gen-1794917858-cpYIvKfHujQSq9il1RY8","provider":"Relace","finish_reason":"length","native_finish_reason":"length","prompt_tokens":1315,"completion_tokens":2000,"total_tokens":3315,"content_length":null,"error_type":"ValueError"}
+  ],
+  "interpretation":"Both responses exhausted the configured completion budget without text acceptable to the parser. Allocation to reasoning versus visible tokens is not recorded, so reasoning exhaustion is a hypothesis, not established by these logs. These failures are not authentication failures."
+}

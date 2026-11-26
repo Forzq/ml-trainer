@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Администрирование · Mockroom</title>
+  <link rel="icon" type="image/png" href="/static/mockroom-logo-purple.png">
+  <link rel="stylesheet" href="/static/css/admin.css">
+  <script src="/static/js/pages/admin.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/static/mockroom-logo-purple.png" alt="" width="40" height="40"> Mockroom</div>
+    <a href="/">Открыть тренажёр</a>
+  </header>
+  <main>
+    <section id="sign-in" class="panel sign-in" hidden>
+      <h1>Вход администратора</h1>
+      <form id="login">
+        <label>Логин <input name="login" autocomplete="username" required maxlength="64"></label>
+        <label>Пароль <input name="password" type="password" autocomplete="current-password" required maxlength="256"></label>
+        <button type="submit" class="primary">Войти</button>
+        <p id="login-error" class="error" role="alert" hidden></p>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="heading">
+        <div><h1>Лимиты беты</h1><p id="updated">Загрузка данных…</p></div>
+        <div class="actions"><button id="refresh" type="button">Обновить</button><button id="logout" type="button">Выйти</button></div>
+      </div>
+      <div id="status" class="status" role="status" hidden></div>
+      <div class="summaries">
+        <section class="panel">
+          <h2>Общая квота</h2>
+          <p class="metric" id="global-remaining">—</p>
+          <p id="global-usage">Осталось запросов</p>
+          <form id="global-limit" class="limit-form" data-target="global">
+            <label>Запросов в сутки <input name="maximum" inputmode="numeric" pattern="[0-9]+" maxlength="19" required></label>
+            <div class="actions"><button class="primary" type="submit">Сохранить</button><button name="reset" type="button">Сбросить</button></div>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>Квота по умолчанию</h2>
+          <p class="metric" id="default-amount">—</p>
+          <p>Запросов на участника в сутки</p>
+          <form id="default-limit" class="limit-form" data-target="default">
+            <label>Запросов в сутки <input name="maximum" inputmode="numeric" pattern="[0-9]+" maxlength="19" required></label>
+            <div class="actions"><button class="primary" type="submit">Сохранить</button><button name="reset" type="button">Сбросить</button></div>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>Бюджет ключа OpenRouter</h2>
+          <p class="metric" id="key-remaining">—</p>
+          <p id="key-status">Загрузка бюджета…</p>
+        </section>
+      </div>
+      <section class="panel invitations">
+        <h2>Приглашение</h2>
+        <form id="new-invite" class="invite-form">
+          <label>Количество участников <input name="capacity" type="number" min="1" max="9007199254740991" value="1" required></label>
+          <label>Действует, часов <input name="hours" type="number" min="1" max="720" value="72" required></label>
+          <button class="primary" type="submit">Создать код</button>
+        </form>
+        <div id="invite-result" class="invite-form" hidden>
+          <label><span id="invite-label">Код приглашения</span><input id="invite-output" readonly autocomplete="off" spellcheck="false"></label>
+          <button id="copy-invite" type="button">Скопировать</button>
+        </div>
+      </section>
+      <section class="panel participants">
+        <div class="heading"><h2>Участники</h2><label class="search">Поиск <input id="search" type="search" placeholder="Имя или ID"></label></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Участник</th><th scope="col">Потрачено</th><th scope="col">Осталось</th><th scope="col">Квота на сутки</th><th scope="col">Заметки</th></tr></thead>
+            <tbody id="accounts"></tbody>
+          </table>
+        </div>
+        <p id="empty" hidden>Участники не найдены.</p>
+      </section>
+      <section class="panel version">
+        <h2>Версия на сервере</h2>
+        <dl>
+          <div><dt>Версия</dt><dd id="release">—</dd></div>
+          <div><dt>ID сборки</dt><dd><code id="build-id">—</code></dd></div>
+          <div><dt>Коммит Git</dt><dd id="commit">—</dd></div>
+          <div><dt>Время сборки</dt><dd id="built-at">—</dd></div>
+        </dl>
+      </section>
+    </section>
+  </main>
+  <template id="account-row">
+    <tr>
+      <th scope="row">
+        <span class="account-name"></span>
+        <small class="account-label" hidden></small>
+        <small class="account-state"></small>
+        <small class="account-registration"></small>
+        <code class="account-id"></code>
+      </th>
+      <td class="account-used"></td>
+      <td class="account-remaining"></td>
+      <td>
+        <form class="account-limit" data-target="account">
+          <input name="maximum" inputmode="numeric" pattern="[0-9]+" maxlength="19" required>
+          <button class="primary" type="submit">Сохранить</button>
+          <button name="reset" type="button">По умолчанию</button>
+        </form>
+        <button class="reset-usage" type="button">Обнулить расход за сегодня</button>
+      </td>
+      <td>
+        <details class="account-notes">
+          <summary>Заметки</summary>
+          <ul class="notes-list"></ul>
+          <form class="note-form">
+            <label>Новая заметка <textarea name="text" rows="3" maxlength="2000" required></textarea></label>
+            <button type="submit">Добавить заметку</button>
+          </form>
+        </details>
+      </td>
+    </tr>
+  </template>
+</body>
+</html>
