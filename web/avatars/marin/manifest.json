@@ -1,6 +1,8 @@
 {
   "id": "marin",
   "name": "Ментор по ML",
+  "kind": "portrait",
+  "voices": ["female"],
   "width": 1199,
   "height": 1312,
   "files": {

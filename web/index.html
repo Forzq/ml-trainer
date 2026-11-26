@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/static/css/settings.css">
   <link rel="stylesheet" href="/static/css/beta.css">
   <script src="/static/js/avatar/portrait.js" defer></script>
+  <script src="/static/js/avatar/turntable.js" defer></script>
   <script src="/static/js/avatar/avatar.js" defer></script>
   <script src="/static/js/audio/live.js" defer></script>
   <script src="/static/js/components/views.js" defer></script>
@@ -143,7 +144,8 @@
             <h2 id="settings-avatar" tabindex="-1">Аватар тренера</h2>
             <label class="avatar-visible-label" id="avatar-visible-label"><input type="checkbox" id="avatar-visible" checked> Показывать аватар в тренировке</label>
             <label class="field-label" for="avatar-preset">Персонаж</label>
-            <select id="avatar-preset"><option value="marin">Ментор по ML</option></select>
+            <select id="avatar-preset" disabled></select>
+            <small class="avatar-credit" id="avatar-credit" hidden>Модель Zhuier · CC BY 4.0</small>
           </section>
         </div>
         <section class="settings-card settings-wide" aria-labelledby="settings-connections">

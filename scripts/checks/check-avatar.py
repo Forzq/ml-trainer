@@ -55,7 +55,7 @@ def checks(evaluate, audio=None, screenshot=None):
     wait(evaluate, "Boolean(document.querySelector('#trainer-avatar'))")
     evaluate("document.querySelector('#trainer-avatar [data-action=avatar-settings]').click(); true")
     wait(evaluate, "document.activeElement?.id==='settings-avatar'")
-    assert evaluate("document.querySelector('#avatar-preset').options.length===1 && document.querySelector('#avatar-preset').value==='marin'")
+    assert evaluate("document.querySelector('#avatar-preset').options.length===2 && document.querySelector('#avatar-preset').value==='marin'")
     assert evaluate("!document.querySelector('#avatar-settings input[type=file], #avatar-preset-info')")
     evaluate("document.querySelector('#settings-resume').click(); true")
     wait(evaluate, "Boolean(document.querySelector('#trainer-avatar'))")
@@ -100,18 +100,41 @@ def checks(evaluate, audio=None, screenshot=None):
             select.value = value;
             select.dispatchEvent(new Event('change', {bubbles:true}));
         };
+        window.chooseAvatarCheckPreset = (value) => {
+            const select = document.querySelector('#avatar-preset');
+            select.value = value;
+            select.dispatchEvent(new Event('change', {bubbles:true}));
+        };
         chooseAvatarCheckVoice('male');
         return true;
     })()""")
-    assert evaluate("document.querySelector('#avatar-visible').disabled && document.querySelector('#avatar-visible').checked")
+    assert evaluate("!document.querySelector('#avatar-visible').disabled && document.querySelector('#avatar-preset').value==='oiia'")
+    assert evaluate("document.querySelector('#avatar-preset option[value=marin]').disabled")
     evaluate("document.querySelector('#settings-resume').click(); true")
-    wait(evaluate, "document.querySelector('#trainer-avatar')?.hidden && !trainerAvatar.rig")
+    wait(evaluate, "trainerAvatar.rig instanceof TurntableRig && trainerAvatar.rig.canvas.dataset.ready==='true'")
+    evaluate("window.catStartTransform=trainerAvatar.rig.canvas.style.transform; true")
+    wait(evaluate, "trainerAvatar.rig.canvas.style.transform!==catStartTransform && trainerAvatar.rig.displayedFrame===0")
+    assert evaluate("getComputedStyle(document.querySelector('.trainer-turntable')).animationName==='none'")
     evaluate("speak('Test male voice', {force:true}); true")
-    wait(evaluate, "speech.status==='playing'")
-    assert evaluate("!trainerAvatar.audio && document.querySelector('#trainer-avatar').hidden")
+    wait(evaluate, "speech.status==='playing' && trainerAvatar.rig.speaking && trainerAvatar.rig.displayedFrame!==0")
+    assert evaluate("!trainerAvatar.audio && document.querySelector('#trainer-avatar').dataset.reaction==='neutral'")
+    evaluate("cancelSpeech(); true")
+    wait(evaluate, "!trainerAvatar.rig.speaking && trainerAvatar.rig.displayedFrame===0")
     evaluate("openSettings('avatar'); true")
     wait(evaluate, "Boolean(document.querySelector('#trainer-voice'))")
-    evaluate("chooseAvatarCheckVoice('female'); document.querySelector('#settings-resume').click(); true")
+    evaluate("chooseAvatarCheckVoice('female'); true")
+    assert evaluate("document.querySelector('#avatar-preset').value==='marin'")
+    evaluate("chooseAvatarCheckPreset('oiia'); document.querySelector('#settings-resume').click(); true")
+    wait(evaluate, "trainerAvatar.rig instanceof TurntableRig && trainerAvatar.rig.canvas.dataset.ready==='true'")
+    evaluate("speak('Test female voice', {force:true}); true")
+    wait(evaluate, "speech.status==='playing' && trainerAvatar.rig.speaking && trainerAvatar.rig.displayedFrame!==0")
+    assert evaluate("avatarCheckErrors.length===0"), evaluate("JSON.stringify(avatarCheckErrors)")
+    evaluate("cancelSpeech(); location.reload(); true")
+    wait(evaluate, "Boolean(state.config && document.querySelector('#trainer-avatar')) && trainerAvatar.pack?.id==='oiia'")
+    evaluate("window.avatarCheckErrors=[]; addEventListener('error', e=>avatarCheckErrors.push(e.message)); addEventListener('unhandledrejection', e=>avatarCheckErrors.push(String(e.reason))); true")
+    evaluate("openSettings('avatar'); true")
+    wait(evaluate, "document.querySelector('#avatar-preset')?.value==='oiia'")
+    evaluate("const select=document.querySelector('#avatar-preset'); select.value='marin'; select.dispatchEvent(new Event('change')); document.querySelector('#settings-resume').click(); true")
     wait(evaluate, "document.querySelector('#trainer-avatar')?.hidden===false && trainerAvatar.rig?.canvas.dataset.ready==='true'")
     evaluate("openSettings('avatar'); true")
     wait(evaluate, "Boolean(document.querySelector('#avatar-visible'))")
@@ -225,7 +248,7 @@ def main():
     faulthandler.cancel_dump_traceback_later()
     print(json.dumps({"result":"passed","renderer":"WebView2" if args.desktop else "Edge", "checks":[
         "built-in avatar settings", "audio-driven open and closed mouth at low volume", "stop closes mouth",
-        "thinking/listening/positive/supportive reactions", "male voice hides avatar", "visibility persistence",
+        "thinking/listening/positive/supportive reactions", "cat with both voices", "speaking spin and idle bob", "preset and visibility persistence",
         "Marin portrait layers", "invariant clothing and pose", "no JS errors"]}))
 
 

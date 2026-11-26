@@ -9,8 +9,11 @@ class TrainerAvatar {
     this.reaction = "neutral";
     this.message = "Можно начинать";
     this.enabled = storage.get("ml-avatar-visible") !== "off";
+    this.preference = storage.get("ml-avatar-preset");
+    this.packs = [];
     this.openMouth = false;
     this.mouthLevel = 0;
+    this.speaking = false;
     this.pack = null;
     this.rig = null;
     this.audio = null;
@@ -20,60 +23,85 @@ class TrainerAvatar {
 
     this.visibilityLabel = panel.querySelector("#avatar-visible-label");
     this.visibility = panel.querySelector("#avatar-visible");
+    this.select = panel.querySelector("#avatar-preset");
+    this.credit = panel.querySelector("#avatar-credit");
     this.visibility.checked = this.enabled;
     this.visibility.addEventListener("change", () => {
       this.enabled = this.visibility.checked;
       this.storage.set("ml-avatar-visible", this.enabled ? "on" : "off");
       this.draw();
     });
+    this.select.addEventListener("change", () => {
+      this.preference = this.select.value;
+      this.storage.set("ml-avatar-preset", this.preference);
+      this.draw();
+    });
   }
 
   async load() {
-    const { pack } = await this.api("/avatar");
-    this.pack = pack;
+    const { pack, packs } = await this.api("/avatar");
+    this.packs = packs ?? (pack ? [pack] : []);
+    this.select.replaceChildren(...this.packs.map(({ id, name }) => new Option(name, id)));
     this.draw();
   }
 
-  update(reaction, message) {
+  update(reaction, message, speaking = false) {
     this.reaction = reaction;
     this.message = message;
+    this.speaking = speaking;
     this.draw();
+  }
+
+  clearRig() {
+    this.rig?.destroy();
+    this.rig?.canvas.remove();
+    this.rig = null;
   }
 
   draw() {
-    const compatible = this.voice() === "female";
-    const available = compatible && Boolean(this.pack);
+    const voice = this.voice();
+    const compatible = this.packs.filter(({ voices = ["female"] }) => voices.includes(voice));
+    this.pack = compatible.find(({ id }) => id === this.preference) ?? compatible[0] ?? null;
+    const available = Boolean(this.pack);
     this.visibility.disabled = !available;
-    this.visibilityLabel.title = compatible ? "" : "Аватар доступен с женским голосом.";
+    this.visibilityLabel.title = available ? "" : "Для этого голоса нет доступного аватара.";
+    this.select.disabled = !available;
+    for (const option of this.select.options) option.disabled = !compatible.some(({ id }) => id === option.value);
+    this.select.value = this.pack?.id ?? "";
+    this.credit.hidden = this.pack?.id !== "oiia";
 
     const host = document.querySelector("#trainer-avatar");
     if (host) host.hidden = !available || !this.enabled;
     if (!host || host.hidden) {
-      this.rig?.destroy();
-      this.rig?.canvas.remove();
-      this.rig = null;
+      this.clearRig();
       return;
     }
 
-    if (!host.firstElementChild) {
+    const turntable = this.pack.kind === "turntable";
+    if (host.dataset.preset !== this.pack.id) {
+      this.clearRig();
+      host.dataset.preset = this.pack.id;
+      delete host.dataset.rigError;
       host.innerHTML = `
         <div class="trainer-avatar-card">
           <div class="trainer-avatar-heading"><span></span><button class="text-button" type="button" data-action="avatar-settings">Настроить</button></div>
-          <div class="trainer-avatar-stage"><div class="trainer-portrait-stack"><img class="trainer-avatar-image" alt="Аватар тренера"></div></div>
+          <div class="trainer-avatar-stage"><div class="trainer-portrait-stack${turntable ? " trainer-turntable" : ""}"><img class="trainer-avatar-image" alt=""></div></div>
           <p class="trainer-avatar-status" role="status"></p>
         </div>`;
       host.querySelector(".trainer-avatar-heading > span").textContent = this.pack.name;
-      host.querySelector(".trainer-avatar-image").src = this.pack.files.base;
+      const image = host.querySelector(".trainer-avatar-image");
+      image.alt = this.pack.name;
+      image.src = this.pack.files.base;
     }
     if ((!this.rig || !this.rig.canvas.isConnected) && !host.dataset.rigError) {
-      this.rig?.destroy();
+      this.clearRig();
       const canvas = document.createElement("canvas");
       canvas.className = "trainer-portrait";
       canvas.setAttribute("role", "img");
       canvas.setAttribute("aria-label", this.pack.name);
       canvas.hidden = true;
       host.querySelector(".trainer-portrait-stack").append(canvas);
-      const rig = new PortraitRig(canvas, this.pack);
+      const rig = turntable ? new TurntableRig(canvas, this.pack) : new PortraitRig(canvas, this.pack);
       this.rig = rig;
       rig.ready.then(() => {
         if (this.rig === rig && !rig.destroyed) canvas.hidden = false;
@@ -83,21 +111,22 @@ class TrainerAvatar {
         canvas.remove();
         host.dataset.rigError = "true";
         this.rig = null;
-        this.toast("Не удалось загрузить анимацию. Портрет остаётся доступен.");
+        this.toast("Не удалось загрузить анимацию. Изображение аватара доступно.");
       });
     }
 
-    this.rig?.update(this.reaction, this.openMouth ? this.mouthLevel : 0);
+    if (turntable) this.rig?.update(this.speaking);
+    else this.rig?.update(this.reaction, this.openMouth ? this.mouthLevel : 0);
     const label = host.querySelector(".trainer-avatar-status");
     if (label.textContent !== this.message) label.textContent = this.message;
-    host.dataset.reaction = this.reaction;
-    host.dataset.mouth = this.openMouth ? "open" : "closed";
+    host.dataset.reaction = turntable ? "neutral" : this.reaction;
+    host.dataset.mouth = !turntable && this.openMouth ? "open" : "closed";
   }
   attachAudio(audio) {
     this.stopAudio();
     // No avatar should ever interrupt playback if Web Audio isn't available.
     const host = document.querySelector("#trainer-avatar");
-    if (!host || host.hidden) return;
+    if (!host || host.hidden || this.pack?.kind === "turntable") return;
     const Context = window.AudioContext || window.webkitAudioContext;
     if (!Context) return;
     try {
@@ -150,7 +179,7 @@ class TrainerAvatar {
     }
     this.openMouth = false;
     this.mouthLevel = 0;
-    if (this.rig) { this.rig.mouth = 0; this.rig.update(this.reaction, 0); }
+    if (this.rig instanceof PortraitRig) this.rig.mouth = 0;
     this.draw();
   }
 }
