@@ -19,7 +19,6 @@ class Settings:
     openai_transcription_model: str = os.getenv("OPENAI_TRANSCRIPTION_MODEL", "whisper-1") or "whisper-1"
     openrouter_key: str = os.getenv("OPENROUTER_API_KEY", "")
     model: str = os.getenv("OPENROUTER_MODEL", "")
-    scope_model: str = os.getenv("OPENROUTER_SCOPE_MODEL", "").strip()
     transcription_model: str = os.getenv("OPENROUTER_TRANSCRIPTION_MODEL", "")
     embedding_model: str = os.getenv("OPENROUTER_EMBEDDING_MODEL", "")
     qdrant_url: str = os.getenv("QDRANT_URL", "")
@@ -63,10 +62,6 @@ class Settings:
     @property
     def trainer_model_name(self) -> str:
         return self.llm_model if self.llm_base_url else self.model
-
-    @property
-    def scope_model_name(self) -> str:
-        return self.scope_model if self.scope_model and not self.llm_base_url else self.trainer_model_name
 
     @property
     def ai_enabled(self) -> bool:

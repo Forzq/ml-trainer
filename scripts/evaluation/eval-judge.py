@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from app.evaluation.benchmark import digest, load_dataset, oracle_result, select_cases, summarise
 from app.core.config import Settings
-from app.training.prompts import SCOPE_RULES, SYSTEM_PROMPT, voice_instruction
+from app.training.prompts import CONTENT_RULES, SYSTEM_PROMPT, voice_instruction
 from app.questions.rubric import CREDIT_RULES, PROMPT_VERSION
 from app.training.evaluator import evaluate
 
@@ -58,7 +58,7 @@ def main():
     original = {key: value for key, value in data.items() if key != "questions_by_id"}
     metadata = {**plan, "dataset_sha256": digest(original), "prompt_version": PROMPT_VERSION,
                 "prompt_sha256": digest(SYSTEM_PROMPT.format(
-                    mentor_voice=voice_instruction("female"), scope_rules=SCOPE_RULES,
+                    mentor_voice=voice_instruction("female"), content_rules=CONTENT_RULES,
                 )),
                 "credit_rules_sha256": digest(CREDIT_RULES),
                 "planned_attempts": len(cases)*args.repeats,

@@ -96,7 +96,7 @@ function renderTraining() {
   const current = session.current_index + 1;
   const lastQuestion = current >= session.total;
   const nextPanel = reviewing ? `<div class="next-panel"><p>Есть вопросы к разбору? Обсуди их с тренером.</p><button class="button primary" data-action="next" id="next-question">${lastQuestion ? "Итоги тренировки" : "Следующий вопрос"} ${icon("arrow")}</button></div>` : "";
-  const composer = `<form class="composer ${reviewing ? "discussion-composer" : ""}" id="answer-form"><label class="sr-only" for="answer-input">${reviewing ? "Сообщение тренеру" : "Твой ответ"}</label><textarea id="answer-input" maxlength="12000" placeholder="${reviewing ? "Задай вопрос или уточни свой ответ…" : "Напиши ответ или запиши его голосом…"}">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">${reviewing ? "Отправить" : "Проверить ответ"} ${icon("arrow")}</button></div><div class="composer-actions">${reviewing ? '<span class="composer-footnote">Обсуждаем текущий вопрос</span>' : '<button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button>'}<span class="composer-footnote">Ctrl + Enter</span></div>${!state.config.ai ? '<p class="composer-footnote">Демо-проверка по ключевым словам · оценка понимания недоступна</p>' : ""}</form>`;
+  const composer = `<form class="composer ${reviewing ? "discussion-composer" : ""}" id="answer-form"><label class="sr-only" for="answer-input">${reviewing ? "Сообщение тренеру" : "Твой ответ"}</label><textarea id="answer-input" maxlength="12000" placeholder="${reviewing ? "Задай вопрос или уточни свой ответ…" : "Напиши ответ или запиши его голосом…"}" aria-describedby="answer-shortcuts">${escapeHTML(storage.get(draftKey()) || "")}</textarea><div class="composer-actions"><div class="composer-left"><button class="mic-button" type="button" data-action="record" id="record-button">${icon("mic")} Ответить голосом</button><button type="button" class="icon-button ${state.sound ? "" : "off"}" data-action="toggle-sound" aria-label="Переключить озвучку" aria-pressed="${state.sound}">${icon("sound")}</button></div><button class="button primary" type="submit" id="submit-answer">${reviewing ? "Отправить" : "Проверить ответ"} ${icon("arrow")}</button></div><div class="composer-actions">${reviewing ? '<span class="composer-footnote">Обсуждаем текущий вопрос</span>' : '<button class="text-button" type="button" data-action="skip">Пока не знаю — показать объяснение</button>'}<span class="composer-footnote" id="answer-shortcuts">Enter или Ctrl + Enter — отправить · Shift + Enter — новая строка</span></div>${!state.config.ai ? '<p class="composer-footnote">Демо-проверка по ключевым словам · оценка понимания недоступна</p>' : ""}</form>`;
   setPage(`
     <div class="page-title"><div><h1>Тренировка</h1><p>${escapeHTML(topic)} · ${escapeHTML(question.level)} ${interviewFrequencyHTML(question.interview_frequency)}</p></div><button class="button small" data-action="finish">Завершить</button></div>
     <div class="training-layout"><section class="chat-panel"><div id="live-panel" class="live-panel"></div><div class="chat-header"><span>Вопрос ${current} из ${session.total}</span><span class="chat-status"><span class="status-dot"></span><span id="activity-label">${reviewing ? "Обсуждаем вопрос" : "Твой ход"}</span></span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite">${messages}</div>
@@ -105,7 +105,14 @@ function renderTraining() {
   `, "Тренировка");
   const chat = $("#chat-messages");
   chat.scrollTo({ top: chat.scrollHeight, behavior: "instant" });
-  $("#answer-form").addEventListener("submit", submitAnswer);
+  const form = $("#answer-form");
+  const input = $("#answer-input");
+  form.addEventListener("submit", submitAnswer);
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.altKey || event.isComposing || event.defaultPrevented) return;
+    event.preventDefault();
+    if (!event.repeat && !input.readOnly) form.requestSubmit();
+  });
   updateLiveUI();
 }
 
@@ -133,14 +140,21 @@ async function submitAnswer(event, skip = false, { silent = false } = {}) {
     storage.remove(key);
     if (state.page === "training") {
       renderTraining();
-      if (!silent) speak(reviewing ? result.discussion.reply : result.evaluation.feedback);
+      if (!silent) {
+        $("#answer-input")?.focus({ preventScroll: true });
+        speak(reviewing ? result.discussion.reply : result.evaluation.feedback);
+      }
     }
     return result;
   } catch (error) {
     toast(error.message);
     if ($("#submit-answer")) $("#submit-answer").disabled = false;
     if ($("#record-button")) $("#record-button").disabled = false;
-    if ($("#answer-input")) $("#answer-input").disabled = false;
+    const input = $("#answer-input");
+    if (input) {
+      input.disabled = false;
+      if (!silent) input.focus({ preventScroll: true });
+    }
     if ($("#next-question")) $("#next-question").disabled = false;
     if ($("#activity-label")) $("#activity-label").textContent = "Можно попробовать ещё раз";
     if (silent) throw error;

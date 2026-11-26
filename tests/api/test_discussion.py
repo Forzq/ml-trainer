@@ -89,13 +89,14 @@ def test_ai_gets_current_question_and_discussion_context_only(tmp_path):
     def reply(**kwargs):
         request = kwargs["json"]
         received.append(request)
-        if "response_format" in request:
-            context = json.loads(request["messages"][-1]["content"])
+        assert request["response_format"] == {"type": "json_object"}
+        context = json.loads(request["messages"][1]["content"])
+        if "student_answer" in context:
             content = json.dumps({"feedback": "Разбор ответа", "criterion_results": [
                 {"id": criterion["id"], "status": "correct", "credit": 4, "evidence": context["student_answer"][:200]}
                 for criterion in context["criteria"]]}, ensure_ascii=False)
         else:
-            content = "Ты прав: твоя формулировка передаёт нужный смысл. Уточню замечание."
+            content = json.dumps({"reply": "Ты прав: твоя формулировка передаёт нужный смысл. Уточню замечание."})
         response = Mock()
         response.json.return_value = {"choices": [{"message": {"content": content}}]}
         return response

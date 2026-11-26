@@ -154,9 +154,6 @@ document.addEventListener("change", (event) => {
   if (event.target.id === "session-topic" || event.target.id === "session-level") updateSessionCounts();
   if (event.target.id === "library-level") { state.libraryLevel = event.target.value; searchCards().catch((error) => toast(error.message)); }
 });
-document.addEventListener("keydown", (event) => {
-  if ((event.ctrlKey || event.metaKey) && event.key === "Enter" && event.target.id === "answer-input") submitAnswer(event);
-});
 window.addEventListener("hashchange", route);
 window.addEventListener("pagehide", () => { live.stop(); discardRecording(); cancelSpeech(); trainerAvatar.context?.close().catch(() => {}); });
 $("#speech-indicator").addEventListener("click", cancelSpeech);
